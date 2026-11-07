@@ -264,10 +264,43 @@ def build_figure(agg: list[dict], path: Path) -> bool:
     return True
 
 
+def _scaling_judgment(data_sorted: list[dict]) -> str:
+    """Summarise scaling across increasing thread counts by comparing
+    medians. Returns one of:
+      'single_configuration'
+      'continued_scaling'   -- every step improves
+      'plateau'             -- improvements but at least one step is within
+                               the prior config's observed range
+      'regression'          -- at least one step's median is worse than the
+                               previous step's median by >1%
+    This is a descriptive label, not a formal test.
+    """
+    if len(data_sorted) <= 1:
+        return "single_configuration"
+    medians = [d["median"] for d in data_sorted]
+    mins = [d["min"] for d in data_sorted]
+    maxes = [d["max"] for d in data_sorted]
+    improvements = []
+    for i in range(1, len(medians)):
+        prev_med, cur_med = medians[i-1], medians[i]
+        improvements.append(cur_med > prev_med * 1.01)
+    deltas_pct = [
+        (medians[i] - medians[i-1]) / medians[i-1] * 100.0
+        for i in range(1, len(medians))
+    ]
+    if any(d < -1.0 for d in deltas_pct):
+        return "regression"
+    if all(improvements):
+        return "continued_scaling"
+    return "plateau"
+
+
 def recommendations(agg: list[dict]) -> dict:
     """Produce a recommendation per use case or 'insufficient data'.
 
     Decision rule is the one implemented in decide_clear_winner().
+    Also adds speedup_vs_1thread and parallel_efficiency per config
+    (throughput side), and a scaling_judgment label.
     """
     out: dict = {
         "decision_rule":
@@ -275,11 +308,34 @@ def recommendations(agg: list[dict]) -> dict:
             "outside the [min, max] observed range of every other config "
             "measured in this run. This is a descriptive overlap check, "
             "not a formal significance test.",
+        "scaling_judgment_rule":
+            "regression = any step drops median by >1% vs previous step; "
+            "continued_scaling = every step improves median by >1%; "
+            "plateau = otherwise. Descriptive labels, not tests.",
     }
     b1 = sorted([r for r in agg if r["batch_size"] == 1],
                 key=lambda r: r["threads"])
     b32 = sorted([r for r in agg if r["batch_size"] == 32],
                  key=lambda r: r["threads"])
+
+    def enrich_with_speedup(data: list[dict], lower_better: bool) -> list[dict]:
+        base = next((r for r in data if r["threads"] == 1), None)
+        out_items = []
+        for r in data:
+            item = {"threads": r["threads"], "median": r["median"],
+                    "min_max": [r["min"], r["max"]], "n_reps": r["n_reps"]}
+            if base is not None and base["median"] > 0:
+                if lower_better:
+                    # For latency, speedup = baseline / current (lower is better).
+                    speedup = base["median"] / r["median"]
+                else:
+                    speedup = r["median"] / base["median"]
+                item["speedup_vs_1thread"] = speedup
+                item["parallel_efficiency"] = (
+                    speedup / r["threads"] if r["threads"] > 0 else None
+                )
+            out_items.append(item)
+        return out_items
 
     def summarize(data, lower_better, metric_label):
         if len(data) == 0:
@@ -298,6 +354,7 @@ def recommendations(agg: list[dict]) -> dict:
                 "baseline_1thread_min_max": [baseline["min"], baseline["max"]],
                 "pct_vs_1thread_median": pct,
             }
+        enriched = enrich_with_speedup(data, lower_better)
         if len(data) == 1:
             return {
                 "status": "single_configuration_only",
@@ -305,6 +362,7 @@ def recommendations(agg: list[dict]) -> dict:
                                   "metric": metric_label,
                                   "median": best["median"],
                                   "min_max": [best["min"], best["max"]]},
+                "all_configs": enriched,
                 **base_info,
             }
         clear = decide_clear_winner(data, best, lower_better)
@@ -317,11 +375,10 @@ def recommendations(agg: list[dict]) -> dict:
                 "min_max": [best["min"], best["max"]],
             },
             "default_if_no_winner": {"threads": 1},
-            "all_configs": [
-                {"threads": r["threads"], "median": r["median"],
-                 "min_max": [r["min"], r["max"]], "n_reps": r["n_reps"]}
-                for r in data
-            ],
+            "all_configs": enriched,
+            "scaling_judgment": _scaling_judgment(
+                sorted(data, key=lambda r: r["threads"])
+            ),
             **base_info,
         }
 

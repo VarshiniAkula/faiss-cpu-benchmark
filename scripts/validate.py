@@ -35,15 +35,19 @@ def validate_positive_int(name: str, value: int, lo: int = 1,
 
 def validate_cli(threads: int, batch_size: int, reps: int, k: int,
                  queries_per_rep: int,
-                 allowed_threads: Iterable[int] = (1, 2, 4),
-                 allowed_batch: Iterable[int] = (1, 32)) -> None:
+                 allowed_threads: Iterable[int] | None = None,
+                 allowed_batch: Iterable[int] | None = None) -> None:
+    """When allowed_* is None, any positive int is accepted. When a set is
+    given, membership is enforced. This lets the orchestrator define its
+    own experiment-specific thread/batch sets without baking them into
+    the worker-level validator."""
     validate_positive_int("threads", threads)
-    if threads not in set(allowed_threads):
+    if allowed_threads is not None and threads not in set(allowed_threads):
         raise ValueError(
             f"threads={threads} not in allowed set {sorted(allowed_threads)}"
         )
     validate_positive_int("batch_size", batch_size)
-    if batch_size not in set(allowed_batch):
+    if allowed_batch is not None and batch_size not in set(allowed_batch):
         raise ValueError(
             f"batch_size={batch_size} not in allowed set {sorted(allowed_batch)}"
         )
@@ -216,18 +220,22 @@ def validate_manifest_vs_records(manifest: dict,
 
 
 def validate_planned_configs(manifest: dict,
-                             allowed_threads: Iterable[int] = (1, 2, 4),
-                             allowed_batch: Iterable[int] = (1, 32)) -> None:
-    """Every planned config must be within the allowed sets, and every
-    expected entry must reference a planned config."""
+                             allowed_threads: Iterable[int] | None = None,
+                             allowed_batch: Iterable[int] | None = None
+                             ) -> None:
+    """Every planned config must be a positive (threads, batch) pair
+    (and inside the explicit allowed sets, if provided). Every expected
+    entry must reference a planned config."""
     planned = {(int(t), int(b)) for t, b in manifest.get("configs", [])}
     for t, b in planned:
-        if t not in set(allowed_threads):
+        validate_positive_int("thread count", t)
+        validate_positive_int("batch_size", b)
+        if allowed_threads is not None and t not in set(allowed_threads):
             raise ValueError(
                 f"manifest configs: thread count {t} not in "
                 f"{sorted(allowed_threads)}"
             )
-        if b not in set(allowed_batch):
+        if allowed_batch is not None and b not in set(allowed_batch):
             raise ValueError(
                 f"manifest configs: batch_size {b} not in "
                 f"{sorted(allowed_batch)}"

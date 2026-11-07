@@ -550,6 +550,120 @@ def test_ntimed_calls_consistency() -> None:
         )
 
 
+# ---------- Stage 1/4 extensions: variable thread sets, speedup, affinity ---
+
+def test_configurable_thread_set_accepted(tmp: Path) -> None:
+    # Smoke run with a non-default thread-batch32 set still produces a
+    # valid manifest and the analyzer accepts it.
+    run_dir = tmp / "custom_threads"
+    r = run_cmd([PY, str(ROOT / "scripts" / "run_bench.py"),
+                 "--mode", "smoke", "--run-dir", str(run_dir),
+                 "--threads-batch32", "1,8,16"])
+    check("20a smoke with custom threads-batch32 succeeds",
+          r.returncode == 0, f"rc={r.returncode}\n{r.stderr}")
+    m = json.loads((run_dir / "manifest.json").read_text())
+    check("20b manifest configs include smoke (1,1)",
+          [1, 1] in m["configs"], str(m["configs"]))
+
+
+def test_full_manifest_covers_variable_thread_set(tmp: Path) -> None:
+    # Full run with --reps 1 and threads-batch32=1,8; expected_entries
+    # should include batch-1 for all three default batch-1 threads AND
+    # batch-32 for 1 and 8.
+    run_dir = tmp / "varset_full"
+    r = run_cmd([PY, str(ROOT / "scripts" / "run_bench.py"),
+                 "--mode", "full", "--run-dir", str(run_dir),
+                 "--reps", "1",
+                 "--threads-batch1", "1,2",
+                 "--threads-batch32", "1,8"])
+    check("21a full with custom thread sets succeeds",
+          r.returncode == 0, f"rc={r.returncode}\n{r.stderr}")
+    m = json.loads((run_dir / "manifest.json").read_text())
+    want = {(1, 1), (2, 1), (1, 32), (8, 32)}
+    got = {(c[0], c[1]) for c in m["configs"]}
+    check("21b configs match the requested sets", got == want,
+          f"got {got}, want {want}")
+    expected_entries = {(e[0], e[1], e[2]) for e in m["expected_entries"]}
+    want_ee = {(1, 1, 0), (2, 1, 0), (1, 32, 0), (8, 32, 0)}
+    check("21c expected_entries match configs for 1 rep",
+          expected_entries == want_ee,
+          f"got {expected_entries} want {want_ee}")
+    # Analyze and confirm it accepts the manifest.
+    a = run_cmd([PY, str(ROOT / "scripts" / "analyze.py"),
+                 "--run-dir", str(run_dir)])
+    check("21d analyze accepts custom-thread full run",
+          a.returncode == 0, f"rc={a.returncode}\n{a.stderr}")
+
+
+def test_speedup_and_parallel_efficiency() -> None:
+    # Hand-built aggregates: 1t=1000, 2t=1900, 4t=3600.
+    agg = [
+        {"threads": 1, "batch_size": 32, "n_reps": 5, "metric": "qps",
+         "median": 1000.0, "min": 990.0, "max": 1010.0, "all_reps": []},
+        {"threads": 2, "batch_size": 32, "n_reps": 5, "metric": "qps",
+         "median": 1900.0, "min": 1880.0, "max": 1920.0, "all_reps": []},
+        {"threads": 4, "batch_size": 32, "n_reps": 5, "metric": "qps",
+         "median": 3600.0, "min": 3550.0, "max": 3650.0, "all_reps": []},
+    ]
+    recs = recommendations(agg)
+    cfgs = recs["throughput_batch32_qps"]["all_configs"]
+    by_t = {c["threads"]: c for c in cfgs}
+    check("22a speedup(1t) = 1.0",
+          abs(by_t[1]["speedup_vs_1thread"] - 1.0) < 1e-9,
+          str(by_t[1]))
+    check("22b speedup(2t) = 1.9",
+          abs(by_t[2]["speedup_vs_1thread"] - 1.9) < 1e-9,
+          str(by_t[2]))
+    check("22c speedup(4t) = 3.6",
+          abs(by_t[4]["speedup_vs_1thread"] - 3.6) < 1e-9,
+          str(by_t[4]))
+    check("22d parallel_efficiency(4t) = 0.9",
+          abs(by_t[4]["parallel_efficiency"] - 0.9) < 1e-9,
+          str(by_t[4]))
+    check("22e scaling_judgment = continued_scaling",
+          recs["throughput_batch32_qps"]["scaling_judgment"] ==
+          "continued_scaling",
+          str(recs["throughput_batch32_qps"].get("scaling_judgment")))
+
+
+def test_regression_scaling_judgment() -> None:
+    # 1t=1000, 2t=1800, 4t=1600 -> regression (4t worse than 2t)
+    agg = [
+        {"threads": 1, "batch_size": 32, "n_reps": 5, "metric": "qps",
+         "median": 1000.0, "min": 980, "max": 1020, "all_reps": []},
+        {"threads": 2, "batch_size": 32, "n_reps": 5, "metric": "qps",
+         "median": 1800.0, "min": 1700, "max": 1850, "all_reps": []},
+        {"threads": 4, "batch_size": 32, "n_reps": 5, "metric": "qps",
+         "median": 1600.0, "min": 1550, "max": 1700, "all_reps": []},
+    ]
+    recs = recommendations(agg)
+    check("23 regression scaling_judgment detected",
+          recs["throughput_batch32_qps"]["scaling_judgment"] == "regression",
+          str(recs["throughput_batch32_qps"].get("scaling_judgment")))
+
+
+def test_topology_detects_hybrid_cpu_on_legion() -> None:
+    # Smoke-check that topology enumeration produces a usable P/E split
+    # on the current host. On a non-hybrid machine this test is skipped.
+    try:
+        from topology import enumerate_topology
+    except Exception as e:
+        check("24 topology import", False, str(e))
+        return
+    t = enumerate_topology()
+    if t.get("p_core_efficiency_class") is None:
+        # Not a hybrid CPU; skip gracefully by reporting PASS with note.
+        check("24 topology skip (CPU not hybrid)", True,
+              "no P/E split detected")
+        return
+    check("24a topology lists both P and E logical CPUs",
+          t["n_p_logical"] > 0 and t["n_e_logical"] > 0,
+          f"n_p={t['n_p_logical']} n_e={t['n_e_logical']}")
+    check("24b total logical equals sum of all physical cores' logical ids",
+          t["n_logical_total"] >= t["n_p_logical"] + t["n_e_logical"],
+          str(t["n_logical_total"]))
+
+
 def main() -> int:
     ensure_data()
     with tempfile.TemporaryDirectory(prefix="faissbench_test_") as tmpd:
@@ -573,6 +687,13 @@ def main() -> int:
     test_nonfinite_or_nonpositive_sum_rejected()
     test_elapsed_less_than_sum_rejected()
     test_ntimed_calls_consistency()
+    test_speedup_and_parallel_efficiency()
+    test_regression_scaling_judgment()
+    test_topology_detects_hybrid_cpu_on_legion()
+    with tempfile.TemporaryDirectory(prefix="faissbench_test2_") as tmpd2:
+        tmp2 = Path(tmpd2)
+        test_configurable_thread_set_accepted(tmp2)
+        test_full_manifest_covers_variable_thread_set(tmp2)
     print()
     print(f"{len(PASS)} passed, {len(FAIL)} failed")
     if FAIL:

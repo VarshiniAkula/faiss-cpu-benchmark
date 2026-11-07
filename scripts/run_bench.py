@@ -41,9 +41,39 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "scripts"))
 import validate as v  # noqa: E402
 
-THREAD_CHOICES = [1, 2, 4]
 BATCH_CHOICES = [1, 32]
-CONFIGS = [(t, b) for b in BATCH_CHOICES for t in THREAD_CHOICES]
+DEFAULT_THREADS_BATCH1 = [1, 2, 4]
+DEFAULT_THREADS_BATCH32 = [1, 2, 4, 8, 16]
+
+
+def build_configs(threads_b1: list[int],
+                  threads_b32: list[int]) -> list[tuple[int, int]]:
+    configs: list[tuple[int, int]] = []
+    for t in threads_b1:
+        configs.append((t, 1))
+    for t in threads_b32:
+        configs.append((t, 32))
+    # Deduplicate while preserving order.
+    seen = set()
+    out = []
+    for c in configs:
+        if c in seen:
+            continue
+        seen.add(c); out.append(c)
+    return out
+
+
+def parse_thread_list(s: str, name: str) -> list[int]:
+    try:
+        vals = [int(x) for x in s.split(",") if x.strip()]
+    except ValueError:
+        raise SystemExit(f"--{name} must be a comma-separated int list; got {s!r}")
+    if not vals:
+        raise SystemExit(f"--{name} must contain at least one thread count")
+    for v_ in vals:
+        if v_ < 1:
+            raise SystemExit(f"--{name}: thread count {v_} must be >= 1")
+    return vals
 
 # Analysis artefacts cleared on overwrite.
 ANALYSIS_ARTEFACTS = (
@@ -135,7 +165,8 @@ def make_env(threads: int) -> dict:
 
 def run_one(run_dir: Path, data_dir: Path, threads: int, batch_size: int,
             rep: int, seed: int, queries_per_rep: int, k: int,
-            expected_hashes: dict) -> dict:
+            expected_hashes: dict,
+            cpu_affinity: list[int] | None = None) -> dict:
     per_call_dir = run_dir / "per_call"
     per_call_dir.mkdir(parents=True, exist_ok=True)
     out_path = per_call_dir / f"b{batch_size}_t{threads}_rep{rep}.json"
@@ -152,6 +183,8 @@ def run_one(run_dir: Path, data_dir: Path, threads: int, batch_size: int,
         "--expected-xb-sha", expected_hashes["xb_sha256"],
         "--expected-xq-sha", expected_hashes["xq_sha256"],
     ]
+    if cpu_affinity is not None:
+        cmd.extend(["--cpu-affinity", ",".join(str(c) for c in cpu_affinity)])
     env = make_env(threads)
     t0 = time.perf_counter()
     r = subprocess.run(cmd, env=env, capture_output=True, text=True)
@@ -213,7 +246,8 @@ def write_manifest(run_dir: Path, mode: str, reps: int, seed: int,
                    queries_per_rep: int, k: int,
                    configs: list[tuple[int, int]],
                    data_dir: Path,
-                   git: dict | None = None) -> dict:
+                   git: dict | None = None,
+                   cpu_affinity: list[int] | None = None) -> dict:
     expected_entries = (
         [[t, b, r] for r in range(reps) for (t, b) in configs]
         if mode == "full" else [[1, 1, 0]]
@@ -241,7 +275,9 @@ def write_manifest(run_dir: Path, mode: str, reps: int, seed: int,
             "numpy": pkg_version("numpy"),
             "matplotlib": pkg_version("matplotlib"),
             "threadpoolctl": pkg_version("threadpoolctl"),
+            "psutil": pkg_version("psutil"),
         },
+        "cpu_affinity_requested": cpu_affinity,
     }
     (run_dir / "manifest.json").write_text(json.dumps(manifest, indent=2))
     return manifest
@@ -324,6 +360,15 @@ def main() -> None:
     p.add_argument("--queries-per-rep", type=int, default=512)
     p.add_argument("--k", type=int, default=5)
     p.add_argument("--seed", type=int, default=20261106)
+    p.add_argument("--threads-batch1", type=str,
+                   default=",".join(str(x) for x in DEFAULT_THREADS_BATCH1),
+                   help="comma-separated thread counts for batch=1")
+    p.add_argument("--threads-batch32", type=str,
+                   default=",".join(str(x) for x in DEFAULT_THREADS_BATCH32),
+                   help="comma-separated thread counts for batch=32")
+    p.add_argument("--cpu-affinity", type=str, default=None,
+                   help="comma-separated CPU ids applied to every worker "
+                        "(for the P/E-core experiment)")
     p.add_argument("--allow-overwrite", action="store_true",
                    help="DANGEROUS: delete prior records in run_dir first.")
     args = p.parse_args()
@@ -332,6 +377,12 @@ def main() -> None:
     v.validate_positive_int("reps", reps)
     v.validate_positive_int("k", args.k, 1, v.VALID_K_RANGE[1])
     v.validate_positive_int("queries_per_rep", args.queries_per_rep)
+    threads_b1 = parse_thread_list(args.threads_batch1, "threads-batch1")
+    threads_b32 = parse_thread_list(args.threads_batch32, "threads-batch32")
+    cpu_affinity = (
+        parse_thread_list(args.cpu_affinity, "cpu-affinity")
+        if args.cpu_affinity else None
+    )
     for b in BATCH_CHOICES:
         if args.queries_per_rep % b != 0:
             raise SystemExit(
@@ -360,11 +411,12 @@ def main() -> None:
 
     copy_machine_info(run_dir)
     configs = (
-        [(1, 1)] if args.mode == "smoke" else list(CONFIGS)
+        [(1, 1)] if args.mode == "smoke"
+        else build_configs(threads_b1, threads_b32)
     )
     manifest = write_manifest(run_dir, args.mode, reps, args.seed,
                               args.queries_per_rep, args.k, configs,
-                              data_dir, git=git)
+                              data_dir, git=git, cpu_affinity=cpu_affinity)
 
     expected_hashes = manifest["dataset_sha256"]
     print(f"run_dir={run_dir}")
@@ -378,6 +430,7 @@ def main() -> None:
             order_log.append(run_one(
                 run_dir, data_dir, 1, 1, 0, args.seed,
                 args.queries_per_rep, args.k, expected_hashes,
+                cpu_affinity=cpu_affinity,
             ))
         else:
             for rep in range(reps):
@@ -388,6 +441,7 @@ def main() -> None:
                     order_log.append(run_one(
                         run_dir, data_dir, t, b, rep, args.seed,
                         args.queries_per_rep, args.k, expected_hashes,
+                        cpu_affinity=cpu_affinity,
                     ))
     except KeyboardInterrupt:
         state_override = "interrupted"

@@ -15,8 +15,54 @@ Two timing fields, both recorded per run:
 
 The pass that collects top-5 IDs for the agreement check is a SEPARATE,
 UNTIMED pass after the timed region.
+
+CPU affinity, if requested via --cpu-affinity, is applied BEFORE
+numpy/faiss import so the OpenMP runtime sees the restricted CPU set
+at initialization. We document this as a process-level restriction;
+per-thread pinning is not performed.
 """
 from __future__ import annotations
+
+# --- EARLY: process-level CPU affinity, before heavy imports. -----------
+import sys as _sys
+_cpu_affinity_requested = None
+if "--cpu-affinity" in _sys.argv:
+    _idx = _sys.argv.index("--cpu-affinity")
+    try:
+        _cpu_affinity_requested = [
+            int(x) for x in _sys.argv[_idx + 1].split(",") if x != ""
+        ]
+    except (IndexError, ValueError):
+        raise SystemExit("--cpu-affinity needs a comma-separated CPU id list")
+    if _sys.platform == "win32":
+        import ctypes as _ctypes
+        mask = 0
+        for c in _cpu_affinity_requested:
+            if c < 0 or c > 63:
+                raise SystemExit(
+                    f"CPU id {c} out of single-group range (0..63); "
+                    "this experiment does not handle multiple processor "
+                    "groups."
+                )
+            mask |= (1 << c)
+        _kernel32 = _ctypes.WinDLL("kernel32", use_last_error=True)
+        _kernel32.SetProcessAffinityMask.argtypes = (
+            _ctypes.c_void_p, _ctypes.c_size_t,
+        )
+        _kernel32.SetProcessAffinityMask.restype = _ctypes.c_int
+        _handle = _kernel32.GetCurrentProcess()
+        ok = _kernel32.SetProcessAffinityMask(_handle, _ctypes.c_size_t(mask))
+        if not ok:
+            raise SystemExit(
+                "SetProcessAffinityMask failed with error "
+                f"{_ctypes.get_last_error()} for mask 0x{mask:x}"
+            )
+    else:
+        import os as _os
+        try:
+            _os.sched_setaffinity(0, set(_cpu_affinity_requested))  # type: ignore
+        except AttributeError:
+            raise SystemExit("sched_setaffinity unavailable on this platform")
 
 import argparse
 import hashlib
@@ -39,6 +85,40 @@ except ImportError:  # pragma: no cover - fail loudly later
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "scripts"))
 import validate as v  # noqa: E402
+
+
+def _observed_cpu_affinity() -> dict:
+    """Return the actually-applied process affinity (not just what we
+    asked for). On Windows uses GetProcessAffinityMask."""
+    out: dict = {
+        "requested_cpu_ids": _cpu_affinity_requested,
+        "observed_cpu_ids": None,
+        "observed_mask_hex": None,
+    }
+    if sys.platform == "win32":
+        import ctypes
+        proc_mask = ctypes.c_size_t(0)
+        sys_mask = ctypes.c_size_t(0)
+        k32 = ctypes.WinDLL("kernel32", use_last_error=True)
+        k32.GetProcessAffinityMask.argtypes = (
+            ctypes.c_void_p, ctypes.POINTER(ctypes.c_size_t),
+            ctypes.POINTER(ctypes.c_size_t),
+        )
+        k32.GetProcessAffinityMask.restype = ctypes.c_int
+        handle = k32.GetCurrentProcess()
+        if k32.GetProcessAffinityMask(handle, ctypes.byref(proc_mask),
+                                       ctypes.byref(sys_mask)):
+            m = proc_mask.value
+            out["observed_mask_hex"] = f"0x{m:x}"
+            out["observed_cpu_ids"] = [
+                i for i in range(64) if (m >> i) & 1
+            ]
+    else:
+        try:
+            out["observed_cpu_ids"] = sorted(os.sched_getaffinity(0))  # type: ignore
+        except AttributeError:
+            pass
+    return out
 
 
 def sha256_file(path: Path, chunk: int = 1 << 20) -> str:
@@ -79,8 +159,11 @@ def run(threads: int, batch_size: int, rep: int, seed: int,
         queries_per_rep: int, k: int,
         data_dir: Path, out_path: Path,
         expected_dataset_sha: dict | None = None) -> None:
+    # Worker accepts any positive thread/batch; the orchestrator owns
+    # the experiment-specific allowed sets.
     v.validate_cli(threads, batch_size, reps=1, k=k,
-                   queries_per_rep=queries_per_rep)
+                   queries_per_rep=queries_per_rep,
+                   allowed_threads=None, allowed_batch=None)
 
     faiss.omp_set_num_threads(int(threads))
 
@@ -159,6 +242,7 @@ def run(threads: int, batch_size: int, rep: int, seed: int,
     tp_info = threadpool_info() if threadpool_info else {
         "error": "threadpoolctl not installed",
     }
+    affinity_info = _observed_cpu_affinity()
 
     record = {
         "schema_version": 2,
@@ -184,6 +268,7 @@ def run(threads: int, batch_size: int, rep: int, seed: int,
             ),
         },
         "runtime_pools": tp_info,
+        "cpu_affinity": affinity_info,
         "packages": {
             "faiss-cpu": pkg_version("faiss-cpu"),
             "numpy": pkg_version("numpy"),
@@ -240,6 +325,11 @@ def main() -> None:
     p.add_argument("--out", type=str, required=True)
     p.add_argument("--expected-xb-sha", type=str, default=None)
     p.add_argument("--expected-xq-sha", type=str, default=None)
+    # --cpu-affinity is consumed early at module load. argparse sees it here
+    # purely so it does not trip "unrecognized argument".
+    p.add_argument("--cpu-affinity", type=str, default=None,
+                   help="comma-separated CPU ids restricting this process "
+                        "(applied before numpy/faiss import)")
     args = p.parse_args()
     expected = None
     if args.expected_xb_sha or args.expected_xq_sha:
