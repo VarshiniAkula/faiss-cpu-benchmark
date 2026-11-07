@@ -379,10 +379,26 @@ def main() -> None:
     v.validate_positive_int("queries_per_rep", args.queries_per_rep)
     threads_b1 = parse_thread_list(args.threads_batch1, "threads-batch1")
     threads_b32 = parse_thread_list(args.threads_batch32, "threads-batch32")
-    cpu_affinity = (
-        parse_thread_list(args.cpu_affinity, "cpu-affinity")
-        if args.cpu_affinity else None
-    )
+    if args.cpu_affinity:
+        try:
+            cpu_affinity = [
+                int(x) for x in args.cpu_affinity.split(",") if x.strip()
+            ]
+        except ValueError:
+            raise SystemExit(
+                f"--cpu-affinity must be a comma-separated int list; "
+                f"got {args.cpu_affinity!r}"
+            )
+        if not cpu_affinity:
+            raise SystemExit("--cpu-affinity must list at least one CPU id")
+        for c in cpu_affinity:
+            if c < 0 or c > 63:
+                raise SystemExit(
+                    f"--cpu-affinity CPU id {c} out of single-group "
+                    f"range (0..63)"
+                )
+    else:
+        cpu_affinity = None
     for b in BATCH_CHOICES:
         if args.queries_per_rep % b != 0:
             raise SystemExit(

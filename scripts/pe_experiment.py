@@ -53,13 +53,18 @@ def run_one_subrun(label: str, affinity: list[int] | None,
                    base_dir: Path, reps: int, threads: int) -> dict:
     sub = base_dir / f"sub_{label}"
     sub.mkdir(parents=True, exist_ok=True)
+    # Every sub-run also measures (threads=1, batch=1) so the agreement
+    # check has a per-rep reference. The headline comparison uses the
+    # higher-thread batch=32 row.
+    threads_b1_set = sorted({1, threads})
+    threads_b32_set = sorted({1, threads})
     cmd = [
         sys.executable, str(RUN_BENCH),
         "--mode", "full",
         "--run-dir", str(sub),
         "--reps", str(reps),
-        "--threads-batch1", str(threads),      # single thread value
-        "--threads-batch32", str(threads),
+        "--threads-batch1", ",".join(str(x) for x in threads_b1_set),
+        "--threads-batch32", ",".join(str(x) for x in threads_b32_set),
     ]
     if affinity is not None:
         cmd.extend(["--cpu-affinity", ",".join(str(c) for c in affinity)])
@@ -77,11 +82,21 @@ def run_one_subrun(label: str, affinity: list[int] | None,
             f"sub-run {label} analyze failed: {r2.stderr[-500:]}"
         )
     recs = json.loads((sub / "recommendations.json").read_text())
+    tput = recs["throughput_batch32_qps"]
+    # Pull the Nt row we actually care about from all_configs.
+    chosen_row = None
+    if "all_configs" in tput:
+        for row in tput["all_configs"]:
+            if row["threads"] == threads:
+                chosen_row = row
+                break
     return {
         "label": label,
         "affinity": affinity,
         "sub_dir": str(sub),
-        "throughput_batch32": recs["throughput_batch32_qps"],
+        "threads_measured": threads,
+        "throughput_batch32_at_target_threads": chosen_row,
+        "throughput_batch32_summary": tput,
     }
 
 
@@ -147,15 +162,14 @@ def main() -> None:
     }
     (base_dir / "comparison.json").write_text(json.dumps(comparison, indent=2))
     print(f"\nwrote {base_dir / 'comparison.json'}")
-    print("\n=== P vs E comparison (median batch-32 throughput, qps) ===")
+    print(f"\n=== P vs E comparison (median batch-32 throughput, qps, "
+          f"at {args.threads} requested threads) ===")
     for r in results:
-        t = r["throughput_batch32"]
-        if "best_observed" in t:
-            m = t["best_observed"]["median"]
-            mm = t["best_observed"]["min_max"]
-        else:
-            m = t["only_measured"]["median"]
-            mm = t["only_measured"]["min_max"]
+        row = r["throughput_batch32_at_target_threads"]
+        if row is None:
+            print(f"  {r['label']:>30}: (no {args.threads}-thread row)")
+            continue
+        m = row["median"]; mm = row["min_max"]
         print(f"  {r['label']:>30}: median {m:.1f} qps "
               f"[{mm[0]:.1f}, {mm[1]:.1f}]")
 
