@@ -1,0 +1,10 @@
+{
+  "state": "completed",
+  "mode": "full",
+  "finished_at_utc": "2026-11-07T07:15:45Z",
+  "n_records_present": 20,
+  "n_entries_expected": 20,
+  "missing": [],
+  "extra": [],
+  "duplicates": []
+}

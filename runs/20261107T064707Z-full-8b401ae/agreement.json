@@ -1,0 +1,399 @@
+{
+  "reference_rule": "per-rep: (threads=1, batch=1, same rep). Missing reference for any non-reference record is an error.",
+  "per_run": [
+    {
+      "threads": 1,
+      "batch_size": 1,
+      "rep": 0,
+      "n_queries_compared": 512,
+      "n_identical_top5_sets": 512,
+      "fraction_identical": 1.0
+    },
+    {
+      "threads": 1,
+      "batch_size": 1,
+      "rep": 1,
+      "n_queries_compared": 512,
+      "n_identical_top5_sets": 512,
+      "fraction_identical": 1.0
+    },
+    {
+      "threads": 1,
+      "batch_size": 1,
+      "rep": 2,
+      "n_queries_compared": 512,
+      "n_identical_top5_sets": 512,
+      "fraction_identical": 1.0
+    },
+    {
+      "threads": 1,
+      "batch_size": 1,
+      "rep": 3,
+      "n_queries_compared": 512,
+      "n_identical_top5_sets": 512,
+      "fraction_identical": 1.0
+    },
+    {
+      "threads": 1,
+      "batch_size": 1,
+      "rep": 4,
+      "n_queries_compared": 512,
+      "n_identical_top5_sets": 512,
+      "fraction_identical": 1.0
+    },
+    {
+      "threads": 1,
+      "batch_size": 32,
+      "rep": 0,
+      "n_queries_compared": 512,
+      "n_identical_top5_sets": 512,
+      "fraction_identical": 1.0
+    },
+    {
+      "threads": 1,
+      "batch_size": 32,
+      "rep": 1,
+      "n_queries_compared": 512,
+      "n_identical_top5_sets": 512,
+      "fraction_identical": 1.0
+    },
+    {
+      "threads": 1,
+      "batch_size": 32,
+      "rep": 2,
+      "n_queries_compared": 512,
+      "n_identical_top5_sets": 512,
+      "fraction_identical": 1.0
+    },
+    {
+      "threads": 1,
+      "batch_size": 32,
+      "rep": 3,
+      "n_queries_compared": 512,
+      "n_identical_top5_sets": 512,
+      "fraction_identical": 1.0
+    },
+    {
+      "threads": 1,
+      "batch_size": 32,
+      "rep": 4,
+      "n_queries_compared": 512,
+      "n_identical_top5_sets": 512,
+      "fraction_identical": 1.0
+    },
+    {
+      "threads": 2,
+      "batch_size": 1,
+      "rep": 0,
+      "n_queries_compared": 512,
+      "n_identical_top5_sets": 512,
+      "fraction_identical": 1.0
+    },
+    {
+      "threads": 2,
+      "batch_size": 1,
+      "rep": 1,
+      "n_queries_compared": 512,
+      "n_identical_top5_sets": 512,
+      "fraction_identical": 1.0
+    },
+    {
+      "threads": 2,
+      "batch_size": 1,
+      "rep": 2,
+      "n_queries_compared": 512,
+      "n_identical_top5_sets": 512,
+      "fraction_identical": 1.0
+    },
+    {
+      "threads": 2,
+      "batch_size": 1,
+      "rep": 3,
+      "n_queries_compared": 512,
+      "n_identical_top5_sets": 512,
+      "fraction_identical": 1.0
+    },
+    {
+      "threads": 2,
+      "batch_size": 1,
+      "rep": 4,
+      "n_queries_compared": 512,
+      "n_identical_top5_sets": 512,
+      "fraction_identical": 1.0
+    },
+    {
+      "threads": 2,
+      "batch_size": 32,
+      "rep": 0,
+      "n_queries_compared": 512,
+      "n_identical_top5_sets": 512,
+      "fraction_identical": 1.0
+    },
+    {
+      "threads": 2,
+      "batch_size": 32,
+      "rep": 1,
+      "n_queries_compared": 512,
+      "n_identical_top5_sets": 512,
+      "fraction_identical": 1.0
+    },
+    {
+      "threads": 2,
+      "batch_size": 32,
+      "rep": 2,
+      "n_queries_compared": 512,
+      "n_identical_top5_sets": 512,
+      "fraction_identical": 1.0
+    },
+    {
+      "threads": 2,
+      "batch_size": 32,
+      "rep": 3,
+      "n_queries_compared": 512,
+      "n_identical_top5_sets": 512,
+      "fraction_identical": 1.0
+    },
+    {
+      "threads": 2,
+      "batch_size": 32,
+      "rep": 4,
+      "n_queries_compared": 512,
+      "n_identical_top5_sets": 512,
+      "fraction_identical": 1.0
+    },
+    {
+      "threads": 4,
+      "batch_size": 1,
+      "rep": 0,
+      "n_queries_compared": 512,
+      "n_identical_top5_sets": 512,
+      "fraction_identical": 1.0
+    },
+    {
+      "threads": 4,
+      "batch_size": 1,
+      "rep": 1,
+      "n_queries_compared": 512,
+      "n_identical_top5_sets": 512,
+      "fraction_identical": 1.0
+    },
+    {
+      "threads": 4,
+      "batch_size": 1,
+      "rep": 2,
+      "n_queries_compared": 512,
+      "n_identical_top5_sets": 512,
+      "fraction_identical": 1.0
+    },
+    {
+      "threads": 4,
+      "batch_size": 1,
+      "rep": 3,
+      "n_queries_compared": 512,
+      "n_identical_top5_sets": 512,
+      "fraction_identical": 1.0
+    },
+    {
+      "threads": 4,
+      "batch_size": 1,
+      "rep": 4,
+      "n_queries_compared": 512,
+      "n_identical_top5_sets": 512,
+      "fraction_identical": 1.0
+    },
+    {
+      "threads": 4,
+      "batch_size": 32,
+      "rep": 0,
+      "n_queries_compared": 512,
+      "n_identical_top5_sets": 512,
+      "fraction_identical": 1.0
+    },
+    {
+      "threads": 4,
+      "batch_size": 32,
+      "rep": 1,
+      "n_queries_compared": 512,
+      "n_identical_top5_sets": 512,
+      "fraction_identical": 1.0
+    },
+    {
+      "threads": 4,
+      "batch_size": 32,
+      "rep": 2,
+      "n_queries_compared": 512,
+      "n_identical_top5_sets": 512,
+      "fraction_identical": 1.0
+    },
+    {
+      "threads": 4,
+      "batch_size": 32,
+      "rep": 3,
+      "n_queries_compared": 512,
+      "n_identical_top5_sets": 512,
+      "fraction_identical": 1.0
+    },
+    {
+      "threads": 4,
+      "batch_size": 32,
+      "rep": 4,
+      "n_queries_compared": 512,
+      "n_identical_top5_sets": 512,
+      "fraction_identical": 1.0
+    },
+    {
+      "threads": 8,
+      "batch_size": 32,
+      "rep": 0,
+      "n_queries_compared": 512,
+      "n_identical_top5_sets": 512,
+      "fraction_identical": 1.0
+    },
+    {
+      "threads": 8,
+      "batch_size": 32,
+      "rep": 1,
+      "n_queries_compared": 512,
+      "n_identical_top5_sets": 512,
+      "fraction_identical": 1.0
+    },
+    {
+      "threads": 8,
+      "batch_size": 32,
+      "rep": 2,
+      "n_queries_compared": 512,
+      "n_identical_top5_sets": 512,
+      "fraction_identical": 1.0
+    },
+    {
+      "threads": 8,
+      "batch_size": 32,
+      "rep": 3,
+      "n_queries_compared": 512,
+      "n_identical_top5_sets": 512,
+      "fraction_identical": 1.0
+    },
+    {
+      "threads": 8,
+      "batch_size": 32,
+      "rep": 4,
+      "n_queries_compared": 512,
+      "n_identical_top5_sets": 512,
+      "fraction_identical": 1.0
+    },
+    {
+      "threads": 16,
+      "batch_size": 32,
+      "rep": 0,
+      "n_queries_compared": 512,
+      "n_identical_top5_sets": 512,
+      "fraction_identical": 1.0
+    },
+    {
+      "threads": 16,
+      "batch_size": 32,
+      "rep": 1,
+      "n_queries_compared": 512,
+      "n_identical_top5_sets": 512,
+      "fraction_identical": 1.0
+    },
+    {
+      "threads": 16,
+      "batch_size": 32,
+      "rep": 2,
+      "n_queries_compared": 512,
+      "n_identical_top5_sets": 512,
+      "fraction_identical": 1.0
+    },
+    {
+      "threads": 16,
+      "batch_size": 32,
+      "rep": 3,
+      "n_queries_compared": 512,
+      "n_identical_top5_sets": 512,
+      "fraction_identical": 1.0
+    },
+    {
+      "threads": 16,
+      "batch_size": 32,
+      "rep": 4,
+      "n_queries_compared": 512,
+      "n_identical_top5_sets": 512,
+      "fraction_identical": 1.0
+    }
+  ],
+  "per_config_summary": [
+    {
+      "threads": 1,
+      "batch_size": 1,
+      "n_reps": 5,
+      "min_fraction_identical": 1.0,
+      "median_fraction_identical": 1.0,
+      "max_fraction_identical": 1.0
+    },
+    {
+      "threads": 1,
+      "batch_size": 32,
+      "n_reps": 5,
+      "min_fraction_identical": 1.0,
+      "median_fraction_identical": 1.0,
+      "max_fraction_identical": 1.0
+    },
+    {
+      "threads": 2,
+      "batch_size": 1,
+      "n_reps": 5,
+      "min_fraction_identical": 1.0,
+      "median_fraction_identical": 1.0,
+      "max_fraction_identical": 1.0
+    },
+    {
+      "threads": 2,
+      "batch_size": 32,
+      "n_reps": 5,
+      "min_fraction_identical": 1.0,
+      "median_fraction_identical": 1.0,
+      "max_fraction_identical": 1.0
+    },
+    {
+      "threads": 4,
+      "batch_size": 1,
+      "n_reps": 5,
+      "min_fraction_identical": 1.0,
+      "median_fraction_identical": 1.0,
+      "max_fraction_identical": 1.0
+    },
+    {
+      "threads": 4,
+      "batch_size": 32,
+      "n_reps": 5,
+      "min_fraction_identical": 1.0,
+      "median_fraction_identical": 1.0,
+      "max_fraction_identical": 1.0
+    },
+    {
+      "threads": 8,
+      "batch_size": 32,
+      "n_reps": 5,
+      "min_fraction_identical": 1.0,
+      "median_fraction_identical": 1.0,
+      "max_fraction_identical": 1.0
+    },
+    {
+      "threads": 16,
+      "batch_size": 32,
+      "n_reps": 5,
+      "min_fraction_identical": 1.0,
+      "median_fraction_identical": 1.0,
+      "max_fraction_identical": 1.0
+    }
+  ],
+  "missing_references": [],
+  "reps_covered": [
+    0,
+    1,
+    2,
+    3,
+    4
+  ]
+}

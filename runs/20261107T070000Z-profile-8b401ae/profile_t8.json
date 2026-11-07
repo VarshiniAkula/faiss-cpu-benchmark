@@ -1,0 +1,58 @@
+{
+  "schema_version": 1,
+  "mode": "profile_workload",
+  "started_at_utc": "2026-11-07T06:59:46Z",
+  "requested_threads": 8,
+  "batch_size": 32,
+  "k": 5,
+  "duration_target_s": 10.0,
+  "region_wall_s": 10.004570299992338,
+  "sum_call_s": 9.99913250017562,
+  "batches_in_region": 1065,
+  "queries_in_region": 34080,
+  "throughput_qps_search_only": 3408.2956695894804,
+  "query_set_repeats_wrapped": true,
+  "query_set_size": 512,
+  "itt_available": false,
+  "env": {
+    "OMP_NUM_THREADS": "8",
+    "MKL_NUM_THREADS": "8",
+    "OPENBLAS_NUM_THREADS": "8",
+    "faiss_omp_get_max_threads_after_set": 8
+  },
+  "runtime_pools": [
+    {
+      "user_api": "blas",
+      "internal_api": "openblas",
+      "num_threads": 8,
+      "prefix": "libopenblas",
+      "filepath": "C:\\Users\\sdas8\\AppData\\Local\\Packages\\PythonSoftwareFoundation.Python.3.11_qbz5n2kfra8p0\\LocalCache\\local-packages\\Python311\\site-packages\\numpy.libs\\libopenblas64__v0.3.23-293-gc2f4bdbb-gcc_10_3_0-65e29aac85b9409a6008e2dc84b1cc09.dll",
+      "version": "0.3.23.dev",
+      "threading_layer": "pthreads",
+      "architecture": "Prescott"
+    },
+    {
+      "user_api": "openmp",
+      "internal_api": "openmp",
+      "num_threads": 8,
+      "prefix": "libomp",
+      "filepath": "C:\\Users\\sdas8\\AppData\\Local\\Packages\\PythonSoftwareFoundation.Python.3.11_qbz5n2kfra8p0\\LocalCache\\local-packages\\Python311\\site-packages\\faiss_cpu.libs\\libomp140.x86_64-21fc660a28479b04d9fec85174fc894e.dll",
+      "version": null
+    },
+    {
+      "user_api": "openmp",
+      "internal_api": "openmp",
+      "num_threads": 8,
+      "prefix": "libomp",
+      "filepath": "C:\\Users\\sdas8\\AppData\\Local\\Packages\\PythonSoftwareFoundation.Python.3.11_qbz5n2kfra8p0\\LocalCache\\local-packages\\Python311\\site-packages\\faiss_cpu.libs\\libomp-26259cba665d756e8627cb8a206937cd.dll",
+      "version": null
+    }
+  ],
+  "dataset": {
+    "nb": 50000,
+    "d": 384,
+    "xb_sha256": "52284a74f3627b551b2f81a5ced580fa3e9068e76274610243f94d3a5c3007d4",
+    "xq_sha256": "1d2a372ceb76eb997b35b6a2fabd7a17b0a2aba44ef434fecc13a0e89e73c604"
+  },
+  "faiss_version": "1.8.0"
+}

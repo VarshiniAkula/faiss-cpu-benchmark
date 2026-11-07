@@ -1,0 +1,162 @@
+[
+  {
+    "threads": 1,
+    "batch_size": 1,
+    "rep": 0,
+    "wall_seconds": 3.8933329999854323,
+    "out_path": "C:\\Users\\sdas8\\faiss-cpu-benchmark\\runs\\20261107T071454Z-pe-9f2ab32\\sub_default_scheduler\\per_call\\b1_t1_rep0.json",
+    "worker_stdout": "ok threads=1 batch=1 rep=0 n_calls=512 sum_calls=1.7368s loop=1.7381s throughput=294.8 qps"
+  },
+  {
+    "threads": 1,
+    "batch_size": 32,
+    "rep": 0,
+    "wall_seconds": 1.4105121000029612,
+    "out_path": "C:\\Users\\sdas8\\faiss-cpu-benchmark\\runs\\20261107T071454Z-pe-9f2ab32\\sub_default_scheduler\\per_call\\b32_t1_rep0.json",
+    "worker_stdout": "ok threads=1 batch=32 rep=0 n_calls=16 sum_calls=0.3188s loop=0.3189s throughput=1606.2 qps"
+  },
+  {
+    "threads": 4,
+    "batch_size": 1,
+    "rep": 0,
+    "wall_seconds": 3.738307399995392,
+    "out_path": "C:\\Users\\sdas8\\faiss-cpu-benchmark\\runs\\20261107T071454Z-pe-9f2ab32\\sub_default_scheduler\\per_call\\b1_t4_rep0.json",
+    "worker_stdout": "ok threads=4 batch=1 rep=0 n_calls=512 sum_calls=1.6493s loop=1.6505s throughput=310.4 qps"
+  },
+  {
+    "threads": 4,
+    "batch_size": 32,
+    "rep": 0,
+    "wall_seconds": 0.8231619999860413,
+    "out_path": "C:\\Users\\sdas8\\faiss-cpu-benchmark\\runs\\20261107T071454Z-pe-9f2ab32\\sub_default_scheduler\\per_call\\b32_t4_rep0.json",
+    "worker_stdout": "ok threads=4 batch=32 rep=0 n_calls=16 sum_calls=0.1659s loop=0.1660s throughput=3087.0 qps"
+  },
+  {
+    "threads": 1,
+    "batch_size": 1,
+    "rep": 1,
+    "wall_seconds": 3.565591599995969,
+    "out_path": "C:\\Users\\sdas8\\faiss-cpu-benchmark\\runs\\20261107T071454Z-pe-9f2ab32\\sub_default_scheduler\\per_call\\b1_t1_rep1.json",
+    "worker_stdout": "ok threads=1 batch=1 rep=1 n_calls=512 sum_calls=1.5645s loop=1.5656s throughput=327.3 qps"
+  },
+  {
+    "threads": 4,
+    "batch_size": 1,
+    "rep": 1,
+    "wall_seconds": 3.4967166999995243,
+    "out_path": "C:\\Users\\sdas8\\faiss-cpu-benchmark\\runs\\20261107T071454Z-pe-9f2ab32\\sub_default_scheduler\\per_call\\b1_t4_rep1.json",
+    "worker_stdout": "ok threads=4 batch=1 rep=1 n_calls=512 sum_calls=1.5776s loop=1.5790s throughput=324.5 qps"
+  },
+  {
+    "threads": 4,
+    "batch_size": 32,
+    "rep": 1,
+    "wall_seconds": 0.8149342999968212,
+    "out_path": "C:\\Users\\sdas8\\faiss-cpu-benchmark\\runs\\20261107T071454Z-pe-9f2ab32\\sub_default_scheduler\\per_call\\b32_t4_rep1.json",
+    "worker_stdout": "ok threads=4 batch=32 rep=1 n_calls=16 sum_calls=0.1906s loop=0.1907s throughput=2686.4 qps"
+  },
+  {
+    "threads": 1,
+    "batch_size": 32,
+    "rep": 1,
+    "wall_seconds": 1.2894360999925993,
+    "out_path": "C:\\Users\\sdas8\\faiss-cpu-benchmark\\runs\\20261107T071454Z-pe-9f2ab32\\sub_default_scheduler\\per_call\\b32_t1_rep1.json",
+    "worker_stdout": "ok threads=1 batch=32 rep=1 n_calls=16 sum_calls=0.3144s loop=0.3145s throughput=1628.7 qps"
+  },
+  {
+    "threads": 1,
+    "batch_size": 32,
+    "rep": 2,
+    "wall_seconds": 1.4062379999959376,
+    "out_path": "C:\\Users\\sdas8\\faiss-cpu-benchmark\\runs\\20261107T071454Z-pe-9f2ab32\\sub_default_scheduler\\per_call\\b32_t1_rep2.json",
+    "worker_stdout": "ok threads=1 batch=32 rep=2 n_calls=16 sum_calls=0.3156s loop=0.3157s throughput=1622.4 qps"
+  },
+  {
+    "threads": 4,
+    "batch_size": 32,
+    "rep": 2,
+    "wall_seconds": 0.8663877999933902,
+    "out_path": "C:\\Users\\sdas8\\faiss-cpu-benchmark\\runs\\20261107T071454Z-pe-9f2ab32\\sub_default_scheduler\\per_call\\b32_t4_rep2.json",
+    "worker_stdout": "ok threads=4 batch=32 rep=2 n_calls=16 sum_calls=0.1725s loop=0.1727s throughput=2967.7 qps"
+  },
+  {
+    "threads": 4,
+    "batch_size": 1,
+    "rep": 2,
+    "wall_seconds": 3.9092372999875806,
+    "out_path": "C:\\Users\\sdas8\\faiss-cpu-benchmark\\runs\\20261107T071454Z-pe-9f2ab32\\sub_default_scheduler\\per_call\\b1_t4_rep2.json",
+    "worker_stdout": "ok threads=4 batch=1 rep=2 n_calls=512 sum_calls=1.6640s loop=1.6653s throughput=307.7 qps"
+  },
+  {
+    "threads": 1,
+    "batch_size": 1,
+    "rep": 2,
+    "wall_seconds": 3.5454600999946706,
+    "out_path": "C:\\Users\\sdas8\\faiss-cpu-benchmark\\runs\\20261107T071454Z-pe-9f2ab32\\sub_default_scheduler\\per_call\\b1_t1_rep2.json",
+    "worker_stdout": "ok threads=1 batch=1 rep=2 n_calls=512 sum_calls=1.5434s loop=1.5445s throughput=331.7 qps"
+  },
+  {
+    "threads": 1,
+    "batch_size": 32,
+    "rep": 3,
+    "wall_seconds": 1.1976700999948662,
+    "out_path": "C:\\Users\\sdas8\\faiss-cpu-benchmark\\runs\\20261107T071454Z-pe-9f2ab32\\sub_default_scheduler\\per_call\\b32_t1_rep3.json",
+    "worker_stdout": "ok threads=1 batch=32 rep=3 n_calls=16 sum_calls=0.3238s loop=0.3239s throughput=1581.5 qps"
+  },
+  {
+    "threads": 4,
+    "batch_size": 32,
+    "rep": 3,
+    "wall_seconds": 0.9759654000226874,
+    "out_path": "C:\\Users\\sdas8\\faiss-cpu-benchmark\\runs\\20261107T071454Z-pe-9f2ab32\\sub_default_scheduler\\per_call\\b32_t4_rep3.json",
+    "worker_stdout": "ok threads=4 batch=32 rep=3 n_calls=16 sum_calls=0.1600s loop=0.1602s throughput=3199.2 qps"
+  },
+  {
+    "threads": 1,
+    "batch_size": 1,
+    "rep": 3,
+    "wall_seconds": 3.6138771999976598,
+    "out_path": "C:\\Users\\sdas8\\faiss-cpu-benchmark\\runs\\20261107T071454Z-pe-9f2ab32\\sub_default_scheduler\\per_call\\b1_t1_rep3.json",
+    "worker_stdout": "ok threads=1 batch=1 rep=3 n_calls=512 sum_calls=1.6442s loop=1.6455s throughput=311.4 qps"
+  },
+  {
+    "threads": 4,
+    "batch_size": 1,
+    "rep": 3,
+    "wall_seconds": 3.440907500014873,
+    "out_path": "C:\\Users\\sdas8\\faiss-cpu-benchmark\\runs\\20261107T071454Z-pe-9f2ab32\\sub_default_scheduler\\per_call\\b1_t4_rep3.json",
+    "worker_stdout": "ok threads=4 batch=1 rep=3 n_calls=512 sum_calls=1.5653s loop=1.5666s throughput=327.1 qps"
+  },
+  {
+    "threads": 4,
+    "batch_size": 1,
+    "rep": 4,
+    "wall_seconds": 3.416534399992088,
+    "out_path": "C:\\Users\\sdas8\\faiss-cpu-benchmark\\runs\\20261107T071454Z-pe-9f2ab32\\sub_default_scheduler\\per_call\\b1_t4_rep4.json",
+    "worker_stdout": "ok threads=4 batch=1 rep=4 n_calls=512 sum_calls=1.4533s loop=1.4544s throughput=352.3 qps"
+  },
+  {
+    "threads": 1,
+    "batch_size": 1,
+    "rep": 4,
+    "wall_seconds": 3.4453797999885865,
+    "out_path": "C:\\Users\\sdas8\\faiss-cpu-benchmark\\runs\\20261107T071454Z-pe-9f2ab32\\sub_default_scheduler\\per_call\\b1_t1_rep4.json",
+    "worker_stdout": "ok threads=1 batch=1 rep=4 n_calls=512 sum_calls=1.5277s loop=1.5289s throughput=335.1 qps"
+  },
+  {
+    "threads": 1,
+    "batch_size": 32,
+    "rep": 4,
+    "wall_seconds": 1.2577206000278238,
+    "out_path": "C:\\Users\\sdas8\\faiss-cpu-benchmark\\runs\\20261107T071454Z-pe-9f2ab32\\sub_default_scheduler\\per_call\\b32_t1_rep4.json",
+    "worker_stdout": "ok threads=1 batch=32 rep=4 n_calls=16 sum_calls=0.3209s loop=0.3210s throughput=1595.6 qps"
+  },
+  {
+    "threads": 4,
+    "batch_size": 32,
+    "rep": 4,
+    "wall_seconds": 0.8458318000193685,
+    "out_path": "C:\\Users\\sdas8\\faiss-cpu-benchmark\\runs\\20261107T071454Z-pe-9f2ab32\\sub_default_scheduler\\per_call\\b32_t4_rep4.json",
+    "worker_stdout": "ok threads=4 batch=32 rep=4 n_calls=16 sum_calls=0.1528s loop=0.1529s throughput=3351.7 qps"
+  }
+]

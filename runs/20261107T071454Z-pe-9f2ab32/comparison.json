@@ -1,0 +1,219 @@
+{
+  "experiment": "p_vs_e_core",
+  "base_dir": "C:\\Users\\sdas8\\faiss-cpu-benchmark\\runs\\20261107T071454Z-pe-9f2ab32",
+  "threads_requested": 4,
+  "n_physical_cores_per_pool": 4,
+  "chosen_p_core_cpus": [
+    0,
+    2,
+    4,
+    6
+  ],
+  "chosen_e_core_cpus": [
+    16,
+    17,
+    18,
+    19
+  ],
+  "sub_runs": [
+    {
+      "label": "default_scheduler",
+      "affinity": null,
+      "sub_dir": "C:\\Users\\sdas8\\faiss-cpu-benchmark\\runs\\20261107T071454Z-pe-9f2ab32\\sub_default_scheduler",
+      "threads_measured": 4,
+      "throughput_batch32_at_target_threads": {
+        "threads": 4,
+        "median": 3086.9817404793953,
+        "min_max": [
+          2686.352593767917,
+          3351.67151409436
+        ],
+        "n_reps": 5,
+        "speedup_vs_1thread": 1.9219626689753657,
+        "parallel_efficiency": 0.48049066724384143
+      },
+      "throughput_batch32_summary": {
+        "status": "clear_winner",
+        "lower_better": false,
+        "best_observed": {
+          "threads": 4,
+          "median": 3086.9817404793953,
+          "min_max": [
+            2686.352593767917,
+            3351.67151409436
+          ]
+        },
+        "default_if_no_winner": {
+          "threads": 1
+        },
+        "all_configs": [
+          {
+            "threads": 1,
+            "median": 1606.1611342977453,
+            "min_max": [
+              1581.4579002024411,
+              1628.7199309701355
+            ],
+            "n_reps": 5,
+            "speedup_vs_1thread": 1.0,
+            "parallel_efficiency": 1.0
+          },
+          {
+            "threads": 4,
+            "median": 3086.9817404793953,
+            "min_max": [
+              2686.352593767917,
+              3351.67151409436
+            ],
+            "n_reps": 5,
+            "speedup_vs_1thread": 1.9219626689753657,
+            "parallel_efficiency": 0.48049066724384143
+          }
+        ],
+        "scaling_judgment": "continued_scaling",
+        "baseline_1thread_median": 1606.1611342977453,
+        "baseline_1thread_min_max": [
+          1581.4579002024411,
+          1628.7199309701355
+        ],
+        "pct_vs_1thread_median": 92.19626689753656
+      }
+    },
+    {
+      "label": "4_physical_p_cores",
+      "affinity": [
+        0,
+        2,
+        4,
+        6
+      ],
+      "sub_dir": "C:\\Users\\sdas8\\faiss-cpu-benchmark\\runs\\20261107T071454Z-pe-9f2ab32\\sub_4_physical_p_cores",
+      "threads_measured": 4,
+      "throughput_batch32_at_target_threads": {
+        "threads": 4,
+        "median": 3290.6787682535273,
+        "min_max": [
+          397.26347538042,
+          3395.493410301947
+        ],
+        "n_reps": 5,
+        "speedup_vs_1thread": 2.0636077934353243,
+        "parallel_efficiency": 0.5159019483588311
+      },
+      "throughput_batch32_summary": {
+        "status": "clear_winner",
+        "lower_better": false,
+        "best_observed": {
+          "threads": 4,
+          "median": 3290.6787682535273,
+          "min_max": [
+            397.26347538042,
+            3395.493410301947
+          ]
+        },
+        "default_if_no_winner": {
+          "threads": 1
+        },
+        "all_configs": [
+          {
+            "threads": 1,
+            "median": 1594.6241232087402,
+            "min_max": [
+              1539.1608207191018,
+              1648.0552306046638
+            ],
+            "n_reps": 5,
+            "speedup_vs_1thread": 1.0,
+            "parallel_efficiency": 1.0
+          },
+          {
+            "threads": 4,
+            "median": 3290.6787682535273,
+            "min_max": [
+              397.26347538042,
+              3395.493410301947
+            ],
+            "n_reps": 5,
+            "speedup_vs_1thread": 2.0636077934353243,
+            "parallel_efficiency": 0.5159019483588311
+          }
+        ],
+        "scaling_judgment": "continued_scaling",
+        "baseline_1thread_median": 1594.6241232087402,
+        "baseline_1thread_min_max": [
+          1539.1608207191018,
+          1648.0552306046638
+        ],
+        "pct_vs_1thread_median": 106.36077934353246
+      }
+    },
+    {
+      "label": "4_physical_e_cores",
+      "affinity": [
+        16,
+        17,
+        18,
+        19
+      ],
+      "sub_dir": "C:\\Users\\sdas8\\faiss-cpu-benchmark\\runs\\20261107T071454Z-pe-9f2ab32\\sub_4_physical_e_cores",
+      "threads_measured": 4,
+      "throughput_batch32_at_target_threads": {
+        "threads": 4,
+        "median": 1235.0023795634074,
+        "min_max": [
+          342.16410777947846,
+          1276.4902898048842
+        ],
+        "n_reps": 5,
+        "speedup_vs_1thread": 2.0219837660246855,
+        "parallel_efficiency": 0.5054959415061714
+      },
+      "throughput_batch32_summary": {
+        "status": "clear_winner",
+        "lower_better": false,
+        "best_observed": {
+          "threads": 4,
+          "median": 1235.0023795634074,
+          "min_max": [
+            342.16410777947846,
+            1276.4902898048842
+          ]
+        },
+        "default_if_no_winner": {
+          "threads": 1
+        },
+        "all_configs": [
+          {
+            "threads": 1,
+            "median": 610.7874851989933,
+            "min_max": [
+              588.1034709205065,
+              675.1108262951299
+            ],
+            "n_reps": 5,
+            "speedup_vs_1thread": 1.0,
+            "parallel_efficiency": 1.0
+          },
+          {
+            "threads": 4,
+            "median": 1235.0023795634074,
+            "min_max": [
+              342.16410777947846,
+              1276.4902898048842
+            ],
+            "n_reps": 5,
+            "speedup_vs_1thread": 2.0219837660246855,
+            "parallel_efficiency": 0.5054959415061714
+          }
+        ],
+        "scaling_judgment": "continued_scaling",
+        "baseline_1thread_median": 610.7874851989933,
+        "baseline_1thread_min_max": [
+          588.1034709205065,
+          675.1108262951299
+        ],
+        "pct_vs_1thread_median": 102.19837660246857
+      }
+    }
+  ]
+}

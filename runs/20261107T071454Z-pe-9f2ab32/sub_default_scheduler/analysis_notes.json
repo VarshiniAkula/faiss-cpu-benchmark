@@ -1,0 +1,32 @@
+{
+  "mode": "full",
+  "configs_present": [
+    [
+      1,
+      1
+    ],
+    [
+      1,
+      32
+    ],
+    [
+      4,
+      1
+    ],
+    [
+      4,
+      32
+    ]
+  ],
+  "reps_covered": [
+    0,
+    1,
+    2,
+    3,
+    4
+  ],
+  "interactive_analyzed": true,
+  "throughput_analyzed": true,
+  "figure_rendered": true,
+  "comparisons_not_performed": []
+}

@@ -1,260 +1,235 @@
 # FAISS CPU Retrieval Benchmark (synthetic workload)
 
-A small, reproducible FAISS CPU retrieval benchmark run on a Lenovo
-Legion laptop. **The workload is synthetic**: no HyArg artifacts were
-supplied, so the dataset is seeded Gaussian vectors.
+A small, reproducible FAISS CPU retrieval benchmark on a Lenovo Legion
+laptop (Intel Core i9-14900HX, Windows 11 native). The workload is a
+**synthetic** `IndexFlatL2` of 50,000 x 384-D float32 vectors with
+seeded Gaussian queries (512 held-out queries, k=5) — described in
+full under [Experiment protocol](#experiment-protocol). Headline
+numbers below are search-only `time.perf_counter()` measurements from
+per-process workers, 5 repetitions each, deterministically shuffled
+order, manifest-validated.
 
-## Benchmark question
+## Benchmark questions
 
-On this CPU, with an `IndexFlatL2` of 50,000 x 384-D float32 vectors and
-`k=5`:
+On this CPU, with that index and k:
 
-1. **Interactive use case (batch=1)** — which of 1, 2, or 4 requested
-   OpenMP threads gives the lowest p95 per-call search latency?
-2. **Throughput use case (batch=32)** — which gives the highest
-   throughput when 32 queries are already waiting?
+1. **Interactive (batch=1)** — which of 1, 2, or 4 requested OpenMP
+   threads gives the lowest p95 per-call search latency? (unchanged
+   historical experiment)
+2. **Throughput scaling (batch=32)** — which of 1, 2, 4, 8, or 16
+   requested threads gives the highest throughput when 32 queries are
+   already waiting? Does scaling continue, plateau, or regress?
+3. **P-core vs E-core placement** — at 4 requested threads, how does
+   restricting the process to 4 physical P-cores or 4 physical E-cores
+   compare to the default scheduler?
 
-Same index, same queries, same k. Two different metrics for two
-different operating points.
+## Headline results
 
-## Final results (validated run)
+![scaling chart: p95 latency and batch-32 throughput vs threads](runs/20261107T064707Z-full-8b401ae/figure.png)
 
-![two-panel figure: p95 latency and batch-32 throughput vs threads](runs/20261107T042639Z-full-2f23831/figure.png)
+### Thread scaling (batch=32, search-only throughput, qps)
 
-From the full run in `runs/20261107T042639Z-full-2f23831/`, produced
-from **commit `2f23831` with `source_dirty: false`**. All 33 regression
-checks (see `tests/test_regression.py`) pass against the same source.
-Manifest / status / agreement:
+From `runs/20261107T064707Z-full-8b401ae/` (commit `8b401ae`, source
+clean, 30/30 records; agreement 1.000 across every rep):
 
-- `status.json`: `state: completed`, 30 / 30 records, 0 missing / 0
-  duplicates / 0 extras.
-- `agreement.json`: 1.000 min / 1.000 median / 1.000 max fraction of
-  identical top-5 sets, every (config, rep) vs the same-rep
-  (threads=1, batch=1) reference.
+| threads | median qps | min    | max    | speedup | parallel eff. | % vs 1t |
+|---------|------------|--------|--------|---------|---------------|---------|
+| 1       | 1600.4     | 1525.4 | 1625.4 | 1.00x   | 1.00          | —       |
+| 2       | 2413.6     | 2255.5 | 2525.9 | 1.51x   | 0.75          | +50.8%  |
+| 4       | 3138.0     | 3002.2 | 3349.6 | 1.96x   | 0.49          | +96.1%  |
+| 8       | **3492.2** | 3172.9 | 3661.4 | 2.18x   | 0.27          | +118.2% |
+| 16      | 2870.1     | 2318.1 | 2981.1 | 1.79x   | 0.11          | +79.3%  |
+
+**Scaling judgment: `regression`.** Throughput rises from 1 to 8
+threads, then drops at 16 threads. Scaling efficiency falls monotonically
+from 1.00 to 0.11. The best observed configuration is **8 threads**.
 
 ### Interactive (batch=1): p95 per-call latency (ms)
 
-| threads | median p95 | min    | max    | % vs 1-thread median |
-|---------|------------|--------|--------|----------------------|
-| 1       | 4.117      | 3.648  | 4.134  | —                    |
-| 2       | 3.986      | 3.739  | 4.170  | -3.2%                |
-| 4       | 4.206      | 4.072  | 4.286  | +2.2%                |
+| threads | median p95 | min    | max    | % vs 1-thread |
+|---------|------------|--------|--------|---------------|
+| 1       | 3.823      | 3.607  | 3.914  | —             |
+| 2       | 3.960      | 3.743  | 4.126  | +3.6%         |
+| 4       | 3.960      | 3.621  | 3.976  | +3.6%         |
 
-### Throughput (batch=32): queries/sec (search-only; see "Timing" below)
+**Decision: `no_clear_winner`.** The best median is t=1 (3.823 ms) but
+t=1's own range `[3.607, 3.914]` overlaps both t=2 and t=4 medians.
+With 5 reps the between-thread effect is within per-rep noise.
 
-| threads | median qps | min    | max    | % vs 1-thread median |
-|---------|------------|--------|--------|----------------------|
-| 1       | 1584.5     | 1516.9 | 1644.1 | —                    |
-| 2       | 2315.9     | 2167.0 | 2348.5 | +46.2%               |
-| 4       | 3033.6     | 2759.8 | 3176.2 | **+91.5%**           |
+### P-core vs E-core placement (batch=32, 4 requested threads)
 
-### Decision rule and recommendation (from `recommendations.json`)
+From `runs/20261107T071454Z-pe-9f2ab32/`, three isolated sub-runs with
+identical workload but different process-level CPU affinity. Topology
+(from `scripts/topology.py` via `GetLogicalProcessorInformationEx`):
+8 physical P-cores exposed as logical CPUs 0..15 (SMT), 16 physical
+E-cores as logical CPUs 16..31 (no SMT), `EfficiencyClass` 1 vs 0.
 
-**Rule.** A thread count is a "clear winner" only if its median is
-outside the `[min, max]` range of every other measured thread count in
-this run. This is a descriptive overlap check, **not a formal
-significance test**.
+| placement             | median qps | min    | max    | per-rep qps         |
+|-----------------------|------------|--------|--------|---------------------|
+| default scheduler     | 3087.0     | 2686.4 | 3351.7 | 3087, 2686, 2968, 3199, 3352 |
+| 4 physical P-cores    | **3290.7** | 397.3  | 3395.5 | 397, 3291, 3131, 3395, 3308 |
+| 4 physical E-cores    | 1235.0     | 342.2  | 1276.5 | 1277, 1235, 1245, 342, 418 |
 
-- **Interactive: `no_clear_winner`.** The best median is t=2 (3.986 ms),
-  and t=1's range `[3.648, 4.134]` contains that median (t=4's range
-  `[4.072, 4.286]` sits entirely above it). The documented rule only
-  requires one other config's `[min, max]` to contain the best
-  median, so this single overlap is sufficient to return
-  `no_clear_winner`. With 5 reps the between-thread effect is not
-  distinguishable from per-rep noise. Default recommendation: **1
-  thread** (keeps the system simple; measured p95 across all three
-  thread counts sits between 3.6 and 4.3 ms).
-- **Throughput: `clear_winner` at 4 threads.** Its min (2759.8 qps)
-  exceeds the maxes of t=1 (1644.1) and t=2 (2348.5). **+91.5%** over
-  the 1-thread batch-32 baseline.
+Headline ratio (medians): **P-cores / E-cores ≈ 2.66x**. The default
+scheduler lands between the two, consistent with the OS placing most
+threads on P-cores when the system is otherwise idle.
 
-Scope: these recommendations are **limited to the measured
-configurations and workload**: threads in {1, 2, 4}, batch sizes in
-{1, 32}, this IndexFlatL2 over 50,000 x 384 f32 vectors with k=5, on
-the specific CPU and power state recorded in `machine.json`.
+Two outlier reps (one in P-cores, two in E-cores) are 3–8x slower than
+the rest of their sub-run. Observed affinity still matches requested
+(verified in each per-call record's `cpu_affinity.observed_mask_hex`);
+cause of the drops is **not measured** (candidate hypotheses: cold OMP
+thread-pool recreation when CPU set is restricted, kernel/driver work
+landing on the affinity set, thermal settling — none verified without
+hardware counters or VTune).
 
-### Agreement with the reference
+### Why 16 threads regressed — hypothesis supported by P/E evidence
 
-Floating-point summation is non-associative, so parallel reductions
-across different thread counts **can** produce slightly different
-distances and could, in principle, change which ID wins near a tie.
-This run exhibited no such differences: all 30 records agree 100%
-with their per-rep reference. We report the observed agreement; this
-is not a correctness guarantee.
+**Observation (scaling):** throughput peaks at 8 threads and drops
+~18% at 16 threads.
 
-## Fresh vs historical measurements
+**Observation (P/E):** on 4 E-cores the same workload runs ~2.66x
+slower than on 4 P-cores.
 
-Historical measurements from commit `6604f72` are preserved in
-`results/` (original) and `runs/20261107T032705Z-full-6604f72/`
-(re-analysed under schema 2). Both are also accepted by the current
-analyzer without modification.
+**Hypothesis (supported, not proven):** the i9-14900HX has 8 P-cores.
+At 16 OpenMP threads the runtime necessarily schedules some workers
+onto E-cores (either exclusively, or sharing P-cores via SMT). FAISS's
+batched L2 search uses a mostly-balanced static partition of the batch
+across threads, so slow-thread barrier wait makes the batch runtime
+dominated by the slowest worker. E-cores at ~0.38x the throughput
+per thread of P-cores are plausible candidates for that slowest worker.
 
-| metric            | historical (6604f72) | fresh (2f23831) | delta   |
-|-------------------|----------------------|-----------------|---------|
-| p95 t=1 (ms)      | 3.921                | 4.117           | +5.0%   |
-| p95 t=2 (ms)      | 3.962                | 3.986           | +0.6%   |
-| p95 t=4 (ms)      | 3.883                | 4.206           | +8.3%   |
-| qps t=1           | 1509.0               | 1584.5          | +5.0%   |
-| qps t=2           | 2229.1               | 2315.9          | +3.9%   |
-| qps t=4           | 2757.7               | 3033.6          | +10.0%  |
+**What would prove this:** a VTune Microarchitecture Exploration
+profile at 16 threads showing E-core utilisation with higher
+`Front-End Bound` or `Retiring` relative to a 4 P-core run, plus
+imbalance in per-thread completion time. Commands are provided in
+`docs/VTUNE_COMMANDS.md`; see Stage 2/3 status below.
 
-Honest reading of the deltas (not tuning decisions):
+## Historical results preserved
 
-- Throughput is 4–10% higher on the fresh run; interactive p95 is 1–8%
-  higher. Plausible but unverified causes: different thermal/boost
-  state, residency of P-cores vs E-cores for the small worker set,
-  background OS load during the two runs. **Not measured**, so these
-  remain hypotheses.
-- The best-median thread count for the interactive case shifted across
-  runs (t=4 historical → t=1 schema-2 reanalysis → t=2 fresh). Both
-  runs independently report `no_clear_winner`, and the shifting rank
-  is itself evidence that the between-thread effect on batch=1 is
-  within per-rep variability on this CPU.
-- Throughput's qualitative story is stable across both runs: scaling
-  with thread count, clear winner at 4 threads, batch=32 gives the
-  bulk of the speedup.
+| commit    | run dir                                        | note                                                |
+|-----------|------------------------------------------------|-----------------------------------------------------|
+| 6604f72   | `results/`                                     | original run, legacy schema                         |
+| 6604f72   | `runs/20261107T032705Z-full-6604f72/`          | re-analysed under schema 2 (same data)              |
+| 2f23831   | `runs/20261107T042639Z-full-2f23831/`          | validated schema-2 full run, 3-thread set           |
+| 8b401ae   | `runs/20261107T064707Z-full-8b401ae/`          | **new 5-thread scaling (1,2,4,8,16)**               |
+| 9f2ab32   | `runs/20261107T071454Z-pe-9f2ab32/`            | **new P-core vs E-core experiment**                 |
 
-No experimental parameter was changed between the two runs to force
-agreement.
+The historical 3-thread runs are still accepted by the current
+analyser without modification; new runs add two threads at the top
+and the P/E experiment.
+
+## Stage 2/3: Intel VTune collection — *blocked, awaiting install*
+
+VTune Profiler is **not installed** on this Legion as of commit
+`9f2ab32`. Everything needed to collect the three requested profiles
+(Hotspots + Microarchitecture Exploration at 1, 4, and 8 threads) is
+implemented and documented:
+
+- **Workload:** `scripts/profile_workload.py` runs the same batched
+  search in a tight loop for a configurable wall-clock duration
+  (default 25 s). Data load, index build, and 10 warm-up calls are
+  **outside** the measured region. The region is delimited with
+  sentinel prints (`PROFILE_REGION_START` / `PROFILE_REGION_END`)
+  and, if the ITT API is importable, with
+  `itt.task_begin/task_end` markers.
+- **Baseline-throughput verification:** `profile_workload.py` runs
+  without any profiler produce throughput numbers that match the
+  per-process benchmark (1 thread: 1603 qps vs 1600, 4 threads:
+  3174 vs 3138, 8 threads: 3408 vs 3492; see
+  `runs/20261107T070000Z-profile-8b401ae/profile_t*.json`). The
+  workload is therefore stable and ready for profiler attachment.
+- **Exact collection commands** for Hotspots, Microarchitecture
+  Exploration, and Performance Snapshot are in
+  `docs/VTUNE_COMMANDS.md`, including matched-work interpretation
+  guidance (fixed-duration runs process different query counts; totals
+  must be normalised per query before cross-run comparison).
+
+To unblock Stages 2/3, install VTune (free), then run the commands in
+`docs/VTUNE_COMMANDS.md`. The expected outputs for commit comparison
+are `summary.csv`, `hotspots.csv`, `callstacks.csv`, and
+`workload_summary.json` per thread count.
 
 ## Experiment protocol
 
 - **Dataset.** `scripts/make_data.py` writes `data/xb.npy`
   (50,000 x 384 f32, seed 20261106) and `data/xq.npy` (512 x 384 f32,
   seed 20261107). Dataset identity is enforced per-run: the manifest
-  records SHA-256 of both files and every worker re-hashes the files
-  and refuses to run if a hash differs from the manifest.
+  records SHA-256 of both files and every worker re-hashes and refuses
+  to run on drift.
 - **Index.** `faiss.IndexFlatL2(384)` with `index.add(xb)`, built fresh
   in every worker (outside the timed region).
-- **Configurations.** `(threads, batch_size) in {(1,1), (2,1), (4,1),
-  (1,32), (2,32), (4,32)}`, 5 reps each. 512 queries per (config, rep).
+- **Configurations (default full run).** `(threads, batch_size)` =
+  `{(1,1),(2,1),(4,1), (1,32),(2,32),(4,32),(8,32),(16,32)}`, 5 reps each.
+  `--threads-batch1` and `--threads-batch32` make these sets
+  configurable; manifests enumerate exactly the chosen set.
+- **Queries.** Same 512 distinct queries used in every (config, rep).
   Query order per rep is a deterministic permutation keyed by
-  `(seed, rep)`; the same order is used by all six configs within a
-  rep, so results align 1:1 across configs.
+  `(seed, rep)`; the same order is applied by every config within a
+  rep. Query count was **not increased** for this extension — the
+  observed per-rep ranges at every thread count stayed within the same
+  envelope as the 3-thread historical runs, so the measured duration
+  is sufficient for the comparisons we are making. Had we increased
+  the query count, it would have been applied uniformly and labelled
+  as a new protocol.
 - **Process isolation.** Every (config, rep) runs in a fresh Python
   subprocess spawned by `scripts/run_bench.py`. Before the worker
   imports NumPy/FAISS, the orchestrator sets `OMP_NUM_THREADS`,
   `MKL_NUM_THREADS`, `OPENBLAS_NUM_THREADS`, `VECLIB_MAXIMUM_THREADS`,
-  `NUMEXPR_NUM_THREADS`, and `BLIS_NUM_THREADS` to the requested count.
-  After import, the worker calls `faiss.omp_set_num_threads(threads)`
-  and records `threadpool_info()` from `threadpoolctl` for the loaded
-  BLAS/OMP runtimes.
-- **Run isolation.** Every experiment writes to its own
-  `runs/<timestamp>-<mode>-<git short>/`. A smoke run cannot
-  overwrite a full run (and vice versa). `--allow-overwrite` is
-  required to re-use a non-empty run dir and, when given, **deletes
-  prior per_call records and analysis artefacts** before starting so
-  stale and fresh records cannot be combined.
+  `NUMEXPR_NUM_THREADS`, and `BLIS_NUM_THREADS` to the requested
+  count. After import, the worker calls
+  `faiss.omp_set_num_threads(threads)` and records `threadpool_info()`
+  from `threadpoolctl` for the loaded BLAS/OMP runtimes.
+- **CPU affinity (P/E experiment).** `--cpu-affinity` is parsed by the
+  worker **before** numpy/faiss import and applied via Windows
+  `SetProcessAffinityMask`. Observed affinity (process-level mask) is
+  read back via `GetProcessAffinityMask` and recorded per record.
+  This is a **process-level restriction** on the set of CPUs the OS
+  scheduler may use; it is not per-thread pinning (thread-to-core
+  binding within the restricted set is still OS-controlled).
 - **Timing.** Only `index.search()` calls are timed with
   `time.perf_counter()`. Two timing fields are recorded:
-    - `sum_call_durations_s` — sum of per-call durations.
-      **Throughput denominator.** Python overhead between calls is
-      excluded.
-    - `elapsed_around_loop_s` — wall time from the first call's `t0`
-      to the last call's `t1`. Kept as a **diagnostic** (always >=
-      `sum_call_durations_s`). Not used in headline metrics.
-  Both fields are validated per record against the raw
-  `call_durations_s` list: a stored sum that disagrees with the raw
-  sum by more than `max(1e-9 * sum, 1e-12)` seconds is rejected.
-- **Agreement.** After the timed region, each worker makes a separate,
-  untimed pass over the same queries to collect top-5 IDs. Analysis
-  compares every record to the same-rep `(threads=1, batch=1)` run
-  and fails if any required reference is missing.
+  - `sum_call_durations_s` — sum of per-call durations.
+    **Throughput denominator.** Python overhead between calls is
+    excluded.
+  - `elapsed_around_loop_s` — wall from the first call's `t0` to the
+    last call's `t1`. Diagnostic only; always >=
+    `sum_call_durations_s`. Not used in headline metrics.
+- **Agreement.** After the timed region, each worker makes a
+  separate, untimed pass over the same queries to collect top-5 IDs.
+  Analysis compares every record to the same-rep `(threads=1,
+  batch=1)` run and fails if any required reference is missing.
+- **Validation before publishing.** `analyze.py` runs all validation
+  (manifest-vs-records, dataset identity hashes, timing-total
+  consistency, nonfinite guards, agreement) **before any report
+  artefact is written**. See `scripts/validate.py` and
+  `tests/test_regression.py`.
 
-## Validation (analyzer refuses to publish bad runs)
-
-`scripts/analyze.py` performs **all validation and agreement checks
-before any report artefact is written**. The run is rejected on any of:
-
-- Missing, duplicate, or unexpected `(threads, batch, rep)` records
-  vs the manifest's `expected_entries` (**both smoke and full
-  modes**).
-- A record's `queries_per_rep`, `k`, `xb_sha256`, or `xq_sha256`
-  disagreeing with the manifest.
-- `sum_call_durations_s` not matching `sum(call_durations_s)` within
-  the documented tolerance (prevents a forged sum from inflating
-  reported throughput).
-- Nonfinite or non-positive timing totals.
-- `elapsed_around_loop_s < sum_call_durations_s` beyond a tiny clock
-  slack.
-- `n_timed_calls` inconsistent with `len(call_durations_s)` or with
-  the expected count derived from batch size and queries per rep.
-- `top5_ids` or `query_order` lengths disagreeing with
-  `queries_per_rep`.
-- Missing per-rep reference for any agreement comparison.
-
-The 33 regression checks in `tests/test_regression.py` exercise each
-of these failure modes and the recommendation decision rule.
-
-## Hardware and software (fresh run)
+## Hardware and software
 
 Recorded in `runs/<run_id>/machine.json` and per-worker records:
 
 - **CPU:** Intel(R) Core(TM) i9-14900HX, 24 physical cores / 32
-  logical processors (hybrid P-core + E-core). WMI base clock: 2200
-  MHz.
-- **OS:** Microsoft Windows 11 Home, build 10.0.26300. Native Windows,
-  not WSL.
+  logical processors. **Hybrid: 8 P-cores (SMT, EfficiencyClass 1,
+  logical CPUs 0–15), 16 E-cores (no SMT, EfficiencyClass 0, logical
+  CPUs 16–31)**, verified by `scripts/topology.py`. WMI base clock
+  2200 MHz; actual boost not measured.
+- **OS:** Microsoft Windows 11 Home, build 10.0.26300. Native
+  Windows, not WSL.
 - **Memory:** ~15.73 GiB visible.
-- **Power:** on AC, plan "Balanced", battery present.
+- **Power:** AC, plan "Balanced" during all runs.
 - **Python:** 3.11.9.
 - **Packages:** faiss-cpu 1.8.0, numpy 1.26.0, matplotlib 3.10.3,
-  threadpoolctl 3.6.0.
-- **Runtime pools (threadpoolctl, with threads=4 example):**
-  OpenBLAS 0.3.23 (num_threads=4), two libomp libraries loaded by
-  FAISS (both num_threads=4). The configured limits propagated to the
-  actual loaded runtimes.
-- **Explicitly not measured during the run** (recorded as `null` with
-  a reason in `machine.json` → `measured_during_run`):
-    - actual achieved CPU frequency and boost state
-    - P-core vs E-core placement of worker threads
-    - cache utilisation
-    - memory bandwidth
-    - energy / power in watts
-    - achieved CPU utilisation percentage
-  Any explanation invoking these mechanisms is a hypothesis, not a
-  measurement.
-
-## Reproduction boundary
-
-**Legion → Legion (same machine).** Rebuilding `xb.npy` and `xq.npy`
-from the seeds using `python scripts/make_data.py` on this Legion
-produces byte-identical files to the committed dataset: both SHA-256s
-match the committed `manifest.dataset_sha256`. Verified in a temp dir
-during this task.
-
-**Legion → Linux (cross-platform).** An independent reviewer ran the
-same `make_data.py` on Linux with NumPy 1.26.0 and reported that
-`xq.npy` matched the committed hash while `xb.npy` differed:
-
-- Legion/committed xb SHA-256: `52284a74f3627b551b2f81a5ced580fa3e9068e76274610243f94d3a5c3007d4`
-- Reviewer (Linux) xb SHA-256: `2a95da80ca6b4b0547765744ca5fcbfb302ddd3abba9a1dbca4be2487f4dd5e6`
-
-I was not able to reproduce the Linux-side result from this Legion
-environment and did not identify a root cause within the scope of this
-project. `np.random.default_rng().standard_normal(dtype=np.float32)` is
-nominally platform-independent for a given NumPy version, so the
-reported Linux mismatch is surprising and remains **unresolved**. What
-can be stated honestly:
-
-- The benchmark is reproducible **given the original Legion-generated
-  `.npy` files identified by the committed hashes** (the `.npy` files
-  themselves are gitignored and are not distributed in the repo): the
-  per-run manifest records exact SHA-256 hashes and every worker
-  refuses to run if the dataset drifts.
-- Byte-identical regeneration **from seeds across heterogeneous
-  platforms is not established**.
-
-Practical recommendations if strict cross-platform reproducibility is
-needed:
-
-1. Distribute the canonical `data/xb.npy` and `data/xq.npy` alongside
-   the code (e.g., Git LFS or a release asset) and verify hashes
-   before running. Currently the files are regenerated locally because
-   they are gitignored.
-2. Alternatively, pin the NumPy patch version exactly (e.g.,
-   `numpy==1.26.0` from a known wheel build) and verify hashes before
-   every run; treat a mismatch as a hard error.
+  threadpoolctl 3.6.0, psutil 5.9.8.
+- **BLAS/OMP runtimes (threadpoolctl at 4 threads):** OpenBLAS 0.3.23,
+  two libomp libraries loaded by FAISS, all respecting the configured
+  thread limit.
+- **Explicitly not measured:** actual achieved CPU frequency and
+  boost residency, cache utilisation, memory bandwidth,
+  energy/power in watts, achieved CPU utilisation percentage, whether
+  the OS scheduler placed workers on P- or E-cores under the
+  **default** (unrestricted) sub-run. Any mechanism claim invoking
+  these is a hypothesis. **No energy-per-query or
+  performance-per-watt claims are made.**
 
 ## Reproducing
 
@@ -267,8 +242,7 @@ python -m pip install --upgrade pip
 pip install -r requirements.txt
 ```
 
-If pip fails with an SSL certificate error on Windows Store Python,
-re-run with:
+If pip fails with an SSL certificate error on Windows Store Python:
 
 ```powershell
 pip install --trusted-host pypi.org --trusted-host files.pythonhosted.org -r requirements.txt
@@ -280,102 +254,110 @@ pip install --trusted-host pypi.org --trusted-host files.pythonhosted.org -r req
 python scripts\make_data.py
 ```
 
-### 3. Smoke run
-
-```powershell
-python scripts\run_bench.py --mode smoke
-python scripts\analyze.py --run-dir (Get-ChildItem runs\*-smoke-* -Directory | Sort-Object Name -Descending | Select-Object -First 1).FullName
-```
-
-### 4. Full run (6 configs x 5 reps)
+### 3. Scaling run (batch-1 at 1/2/4 threads + batch-32 at 1/2/4/8/16)
 
 ```powershell
 python scripts\run_bench.py --mode full --reps 5
 python scripts\analyze.py --run-dir (Get-ChildItem runs\*-full-* -Directory | Sort-Object Name -Descending | Select-Object -First 1).FullName
 ```
 
-To analyse a specific prior run:
+To tune the thread sets:
 
 ```powershell
-python scripts\analyze.py --run-dir runs\20261107T042639Z-full-2f23831
+python scripts\run_bench.py --mode full --reps 5 `
+    --threads-batch1 "1,2,4" --threads-batch32 "1,2,4,8,16"
 ```
 
-### 5. Regression tests
+### 4. Topology dump
+
+```powershell
+python scripts\topology.py --out runs\topology.json
+```
+
+### 5. P-core vs E-core experiment (three sub-runs, 5 reps each)
+
+```powershell
+python scripts\pe_experiment.py --reps 5 --threads 4
+```
+
+Writes a new `runs/<timestamp>-pe-<git short>/` with three sub-runs
+and `comparison.json`.
+
+### 6. Regression tests
 
 ```powershell
 python tests\test_regression.py
 ```
 
-All 33 checks must pass.
+All 47 checks must pass.
 
-## Repository layout
+### 7. VTune profile collection (blocked on install — see `docs/VTUNE_COMMANDS.md`)
+
+## Repository layout (additions from this extension)
 
 ```
-faiss-cpu-benchmark/
-  README.md
-  requirements.txt
-  .gitignore
-  scripts/
-    inspect_machine.py   per-run machine metadata (explicit unknowns)
-    make_data.py         seeded synthetic dataset
-    worker.py            single-config worker; writes one JSON per run
-    run_bench.py         orchestrator (modes, manifest, status, cleanup)
-    analyze.py           reads ONE run dir; validates first, then writes
-    validate.py          shared validators (also imported by tests)
-  tests/
-    test_regression.py   runnable: `python tests/test_regression.py`
-  data/
-    dataset.json         dataset metadata (.npy files are gitignored and
-                         regenerated deterministically by make_data.py)
-  runs/
-    <timestamp>-<mode>-<git short>/
-      manifest.json      what was planned; git, versions, hashes
-      machine.json       hardware/software/power at inspection
-      run_order.json     actual run order + wall times
-      per_call/*.json    one raw record per (config, rep)
-      summary.csv        per-run metrics
-      summary_agg.csv    median [min, max] per config
-      agreement.json     per-rep top-5 identity
-      recommendations.json
-      figure.png
-      status.json        completion / interrupted / failed state
-      analysis_notes.json which comparisons were performed
-  results/               HISTORICAL run from commit 6604f72 (preserved)
+scripts/
+  profile_workload.py    fixed-duration VTune-ready workload
+  topology.py            P/E-core enumeration (GetLogicalProcessorInformationEx)
+  pe_experiment.py       3-sub-run P/E comparison orchestrator
+docs/
+  VTUNE_COMMANDS.md      exact install + collect commands
+runs/
+  <ts>-full-<git>/       as before (scaling runs)
+  <ts>-pe-<git>/         P/E experiment (topology.json, comparison.json,
+                         three sub-runs)
+  <ts>-profile-<git>/    unprofiled fixed-duration runs as a baseline
 ```
 
-## Limitations
+## Limitations and reproduction boundary
 
-- Synthetic standard-normal data only. A real HyArg index with
-  different distribution, cardinality, or dimensionality may behave
-  differently.
-- `IndexFlatL2` is an exact brute-force index. Results do not transfer
-  directly to `IndexIVFPQ`, `HNSW`, or other approximate indexes.
-- Only threads in {1, 2, 4} and batch sizes {1, 32} were tested. 8/16
-  threads and larger batches may change the picture on a 24-core CPU.
-- 5 reps is a small sample. The decision rule is a descriptive
-  range-overlap check, not a confidence interval or formal test.
-- No hardware counters, no RAPL energy, no cache / memory-bandwidth
-  measurements, no sampled per-core frequency or P/E placement.
-- Cross-platform byte-identical dataset regeneration is not
-  established (see Reproduction boundary).
+- Synthetic Gaussian data; `IndexFlatL2`. Approximate indexes
+  (`HNSW`, `IndexIVFPQ`, …) are out of scope.
+- Only threads in {1, 2, 4, 8, 16} and batch sizes in {1, 32}, 5 reps
+  each (plus the P/E sub-runs at 4 threads). The decision rule is a
+  descriptive range-overlap check, not a significance test.
+- **Variability.** The P/E sub-runs show per-rep outliers (3–8x slower
+  than typical). The medians support the P-core / E-core ratio, but
+  min/max are wide. Likely candidates include OMP thread-pool
+  recreation cost under affinity restriction and background OS load;
+  **not measured**.
+- **Scheduler placement under default (unrestricted) runs** is not
+  observed. Interpretations like "the default scheduler puts threads
+  on P-cores" are consistent with the data but not verified.
+- Cross-platform byte-identical regeneration of `xb.npy` from seeds is
+  **not established** (an independent reviewer on Linux reports a
+  different xb SHA-256 while xq matches). On this Legion, regenerating
+  from seeds produces byte-identical files to the committed hashes.
+  The benchmark is reproducible given the original Legion-generated
+  `.npy` files identified by the committed hashes (the `.npy` files
+  themselves are gitignored and not distributed in the repo); every
+  worker refuses to run if the dataset drifts.
+- No hardware counters, cache/bandwidth, RAPL energy, or per-core
+  frequency were collected. VTune collection is Stage 2/3 and is
+  blocked on install.
 
-## What was and was not verified by the final run
+## What this extension verified
 
-- **Verified by `runs/20261107T042639Z-full-2f23831/`:** source commit
-  `2f23831` with `source_dirty: false`; 30 per-call records written;
-  manifest-vs-records check `state=completed`; every record's dataset
-  SHA-256 matched the manifest; `threadpoolctl` confirmed OpenBLAS
-  and both libomp runtimes honoured the configured thread cap; every
-  stored `sum_call_durations_s` matched the sum of its raw
-  `call_durations_s` within tolerance; agreement check ran against a
-  per-rep reference for every non-reference record.
-- **Verified by `tests/test_regression.py`:** 33 / 33 checks pass,
-  including the forged-sum, manifest-mismatch, empty-smoke,
-  duplicate-smoke, extra-smoke, overwrite-cleanup, and failed-worker
-  status cases.
-- **Not verified:** actual CPU frequency and boost state during
-  timing, P-core / E-core placement, cache / memory-bandwidth
-  behaviour, energy, achieved CPU utilisation percentage, cross-platform
-  byte-identical dataset regeneration, and any claim about **why** the
-  observed scaling is what it is. These are explicitly documented as
-  unknown.
+- **Thread scaling, 1→16 threads at batch=32:** peak at 8 threads
+  (+118% median vs 1 thread), regression at 16 threads (+79%,
+  down from +118%). Scaling judgment labelled `regression`.
+- **P-core vs E-core affinity at 4 threads:** medians 3291 qps
+  (P-cores) vs 1235 qps (E-cores), ratio ~2.66x. Default scheduler
+  sits between. Observed affinity verified to match requested in
+  every per-call record.
+- **Topology discovery:** `GetLogicalProcessorInformationEx` cleanly
+  separates 8 P-cores from 16 E-cores on this hybrid CPU; result is
+  deterministic and testable.
+- **Validation hardening preserved:** all existing failure modes
+  (forged sums, manifest mismatches, incomplete runs, missing
+  references) still rejected; 47 / 47 regression tests pass.
+
+## What this extension did NOT verify
+
+- The 16-thread regression's **mechanism** (E-core spill vs SMT
+  contention vs scheduler ping-pong) — requires VTune profiles
+  (Stage 2/3, blocked).
+- Cause of the 3–8x outlier reps in the P/E sub-runs.
+- Boost clock residency on P- vs E-cores during the restricted runs.
+- Energy or performance-per-watt comparisons. **No such claim is
+  made.**

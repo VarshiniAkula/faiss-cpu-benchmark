@@ -1,0 +1,322 @@
+[
+  {
+    "threads": 1,
+    "batch_size": 1,
+    "rep": 0,
+    "wall_seconds": 3.7983547000039835,
+    "out_path": "C:\\Users\\sdas8\\faiss-cpu-benchmark\\runs\\20261107T064707Z-full-8b401ae\\per_call\\b1_t1_rep0.json",
+    "worker_stdout": "ok threads=1 batch=1 rep=0 n_calls=512 sum_calls=1.6395s loop=1.6407s throughput=312.3 qps"
+  },
+  {
+    "threads": 1,
+    "batch_size": 32,
+    "rep": 0,
+    "wall_seconds": 1.2415473999863025,
+    "out_path": "C:\\Users\\sdas8\\faiss-cpu-benchmark\\runs\\20261107T064707Z-full-8b401ae\\per_call\\b32_t1_rep0.json",
+    "worker_stdout": "ok threads=1 batch=32 rep=0 n_calls=16 sum_calls=0.3150s loop=0.3151s throughput=1625.4 qps"
+  },
+  {
+    "threads": 2,
+    "batch_size": 32,
+    "rep": 0,
+    "wall_seconds": 0.9869024000072386,
+    "out_path": "C:\\Users\\sdas8\\faiss-cpu-benchmark\\runs\\20261107T064707Z-full-8b401ae\\per_call\\b32_t2_rep0.json",
+    "worker_stdout": "ok threads=2 batch=32 rep=0 n_calls=16 sum_calls=0.2270s loop=0.2271s throughput=2255.5 qps"
+  },
+  {
+    "threads": 2,
+    "batch_size": 1,
+    "rep": 0,
+    "wall_seconds": 3.762850300001446,
+    "out_path": "C:\\Users\\sdas8\\faiss-cpu-benchmark\\runs\\20261107T064707Z-full-8b401ae\\per_call\\b1_t2_rep0.json",
+    "worker_stdout": "ok threads=2 batch=1 rep=0 n_calls=512 sum_calls=1.7569s loop=1.7585s throughput=291.4 qps"
+  },
+  {
+    "threads": 16,
+    "batch_size": 32,
+    "rep": 0,
+    "wall_seconds": 0.9167397000128403,
+    "out_path": "C:\\Users\\sdas8\\faiss-cpu-benchmark\\runs\\20261107T064707Z-full-8b401ae\\per_call\\b32_t16_rep0.json",
+    "worker_stdout": "ok threads=16 batch=32 rep=0 n_calls=16 sum_calls=0.1757s loop=0.1758s throughput=2914.3 qps"
+  },
+  {
+    "threads": 4,
+    "batch_size": 32,
+    "rep": 0,
+    "wall_seconds": 0.8038805999967735,
+    "out_path": "C:\\Users\\sdas8\\faiss-cpu-benchmark\\runs\\20261107T064707Z-full-8b401ae\\per_call\\b32_t4_rep0.json",
+    "worker_stdout": "ok threads=4 batch=32 rep=0 n_calls=16 sum_calls=0.1529s loop=0.1530s throughput=3349.6 qps"
+  },
+  {
+    "threads": 4,
+    "batch_size": 1,
+    "rep": 0,
+    "wall_seconds": 3.8867673999920953,
+    "out_path": "C:\\Users\\sdas8\\faiss-cpu-benchmark\\runs\\20261107T064707Z-full-8b401ae\\per_call\\b1_t4_rep0.json",
+    "worker_stdout": "ok threads=4 batch=1 rep=0 n_calls=512 sum_calls=1.6397s loop=1.6410s throughput=312.3 qps"
+  },
+  {
+    "threads": 8,
+    "batch_size": 32,
+    "rep": 0,
+    "wall_seconds": 0.782181299990043,
+    "out_path": "C:\\Users\\sdas8\\faiss-cpu-benchmark\\runs\\20261107T064707Z-full-8b401ae\\per_call\\b32_t8_rep0.json",
+    "worker_stdout": "ok threads=8 batch=32 rep=0 n_calls=16 sum_calls=0.1402s loop=0.1403s throughput=3653.1 qps"
+  },
+  {
+    "threads": 16,
+    "batch_size": 32,
+    "rep": 1,
+    "wall_seconds": 1.0544500999967568,
+    "out_path": "C:\\Users\\sdas8\\faiss-cpu-benchmark\\runs\\20261107T064707Z-full-8b401ae\\per_call\\b32_t16_rep1.json",
+    "worker_stdout": "ok threads=16 batch=32 rep=1 n_calls=16 sum_calls=0.2209s loop=0.2210s throughput=2318.1 qps"
+  },
+  {
+    "threads": 1,
+    "batch_size": 32,
+    "rep": 1,
+    "wall_seconds": 1.226241000025766,
+    "out_path": "C:\\Users\\sdas8\\faiss-cpu-benchmark\\runs\\20261107T064707Z-full-8b401ae\\per_call\\b32_t1_rep1.json",
+    "worker_stdout": "ok threads=1 batch=32 rep=1 n_calls=16 sum_calls=0.3176s loop=0.3177s throughput=1612.3 qps"
+  },
+  {
+    "threads": 8,
+    "batch_size": 32,
+    "rep": 1,
+    "wall_seconds": 1.0265177999972366,
+    "out_path": "C:\\Users\\sdas8\\faiss-cpu-benchmark\\runs\\20261107T064707Z-full-8b401ae\\per_call\\b32_t8_rep1.json",
+    "worker_stdout": "ok threads=8 batch=32 rep=1 n_calls=16 sum_calls=0.1614s loop=0.1615s throughput=3172.9 qps"
+  },
+  {
+    "threads": 1,
+    "batch_size": 1,
+    "rep": 1,
+    "wall_seconds": 3.598730900004739,
+    "out_path": "C:\\Users\\sdas8\\faiss-cpu-benchmark\\runs\\20261107T064707Z-full-8b401ae\\per_call\\b1_t1_rep1.json",
+    "worker_stdout": "ok threads=1 batch=1 rep=1 n_calls=512 sum_calls=1.5799s loop=1.5812s throughput=324.1 qps"
+  },
+  {
+    "threads": 2,
+    "batch_size": 1,
+    "rep": 1,
+    "wall_seconds": 3.4952483999950346,
+    "out_path": "C:\\Users\\sdas8\\faiss-cpu-benchmark\\runs\\20261107T064707Z-full-8b401ae\\per_call\\b1_t2_rep1.json",
+    "worker_stdout": "ok threads=2 batch=1 rep=1 n_calls=512 sum_calls=1.5763s loop=1.5775s throughput=324.8 qps"
+  },
+  {
+    "threads": 4,
+    "batch_size": 1,
+    "rep": 1,
+    "wall_seconds": 3.4664260999998078,
+    "out_path": "C:\\Users\\sdas8\\faiss-cpu-benchmark\\runs\\20261107T064707Z-full-8b401ae\\per_call\\b1_t4_rep1.json",
+    "worker_stdout": "ok threads=4 batch=1 rep=1 n_calls=512 sum_calls=1.4824s loop=1.4837s throughput=345.4 qps"
+  },
+  {
+    "threads": 4,
+    "batch_size": 32,
+    "rep": 1,
+    "wall_seconds": 0.8190405999775976,
+    "out_path": "C:\\Users\\sdas8\\faiss-cpu-benchmark\\runs\\20261107T064707Z-full-8b401ae\\per_call\\b32_t4_rep1.json",
+    "worker_stdout": "ok threads=4 batch=32 rep=1 n_calls=16 sum_calls=0.1544s loop=0.1545s throughput=3315.7 qps"
+  },
+  {
+    "threads": 2,
+    "batch_size": 32,
+    "rep": 1,
+    "wall_seconds": 0.9312221999862231,
+    "out_path": "C:\\Users\\sdas8\\faiss-cpu-benchmark\\runs\\20261107T064707Z-full-8b401ae\\per_call\\b32_t2_rep1.json",
+    "worker_stdout": "ok threads=2 batch=32 rep=1 n_calls=16 sum_calls=0.2027s loop=0.2028s throughput=2525.9 qps"
+  },
+  {
+    "threads": 2,
+    "batch_size": 32,
+    "rep": 2,
+    "wall_seconds": 1.0850599000114016,
+    "out_path": "C:\\Users\\sdas8\\faiss-cpu-benchmark\\runs\\20261107T064707Z-full-8b401ae\\per_call\\b32_t2_rep2.json",
+    "worker_stdout": "ok threads=2 batch=32 rep=2 n_calls=16 sum_calls=0.2165s loop=0.2166s throughput=2365.3 qps"
+  },
+  {
+    "threads": 4,
+    "batch_size": 32,
+    "rep": 2,
+    "wall_seconds": 0.8818664000136778,
+    "out_path": "C:\\Users\\sdas8\\faiss-cpu-benchmark\\runs\\20261107T064707Z-full-8b401ae\\per_call\\b32_t4_rep2.json",
+    "worker_stdout": "ok threads=4 batch=32 rep=2 n_calls=16 sum_calls=0.1705s loop=0.1707s throughput=3002.2 qps"
+  },
+  {
+    "threads": 8,
+    "batch_size": 32,
+    "rep": 2,
+    "wall_seconds": 0.8443999000010081,
+    "out_path": "C:\\Users\\sdas8\\faiss-cpu-benchmark\\runs\\20261107T064707Z-full-8b401ae\\per_call\\b32_t8_rep2.json",
+    "worker_stdout": "ok threads=8 batch=32 rep=2 n_calls=16 sum_calls=0.1613s loop=0.1614s throughput=3174.9 qps"
+  },
+  {
+    "threads": 4,
+    "batch_size": 1,
+    "rep": 2,
+    "wall_seconds": 3.7366509000130463,
+    "out_path": "C:\\Users\\sdas8\\faiss-cpu-benchmark\\runs\\20261107T064707Z-full-8b401ae\\per_call\\b1_t4_rep2.json",
+    "worker_stdout": "ok threads=4 batch=1 rep=2 n_calls=512 sum_calls=1.6596s loop=1.6609s throughput=308.5 qps"
+  },
+  {
+    "threads": 1,
+    "batch_size": 1,
+    "rep": 2,
+    "wall_seconds": 3.445776999986265,
+    "out_path": "C:\\Users\\sdas8\\faiss-cpu-benchmark\\runs\\20261107T064707Z-full-8b401ae\\per_call\\b1_t1_rep2.json",
+    "worker_stdout": "ok threads=1 batch=1 rep=2 n_calls=512 sum_calls=1.5280s loop=1.5291s throughput=335.1 qps"
+  },
+  {
+    "threads": 16,
+    "batch_size": 32,
+    "rep": 2,
+    "wall_seconds": 0.8554918000008911,
+    "out_path": "C:\\Users\\sdas8\\faiss-cpu-benchmark\\runs\\20261107T064707Z-full-8b401ae\\per_call\\b32_t16_rep2.json",
+    "worker_stdout": "ok threads=16 batch=32 rep=2 n_calls=16 sum_calls=0.1717s loop=0.1719s throughput=2981.1 qps"
+  },
+  {
+    "threads": 1,
+    "batch_size": 32,
+    "rep": 2,
+    "wall_seconds": 1.381500799994683,
+    "out_path": "C:\\Users\\sdas8\\faiss-cpu-benchmark\\runs\\20261107T064707Z-full-8b401ae\\per_call\\b32_t1_rep2.json",
+    "worker_stdout": "ok threads=1 batch=32 rep=2 n_calls=16 sum_calls=0.3199s loop=0.3200s throughput=1600.4 qps"
+  },
+  {
+    "threads": 2,
+    "batch_size": 1,
+    "rep": 2,
+    "wall_seconds": 3.701100599981146,
+    "out_path": "C:\\Users\\sdas8\\faiss-cpu-benchmark\\runs\\20261107T064707Z-full-8b401ae\\per_call\\b1_t2_rep2.json",
+    "worker_stdout": "ok threads=2 batch=1 rep=2 n_calls=512 sum_calls=1.6486s loop=1.6498s throughput=310.6 qps"
+  },
+  {
+    "threads": 2,
+    "batch_size": 32,
+    "rep": 3,
+    "wall_seconds": 0.959907899989048,
+    "out_path": "C:\\Users\\sdas8\\faiss-cpu-benchmark\\runs\\20261107T064707Z-full-8b401ae\\per_call\\b32_t2_rep3.json",
+    "worker_stdout": "ok threads=2 batch=32 rep=3 n_calls=16 sum_calls=0.2121s loop=0.2122s throughput=2413.6 qps"
+  },
+  {
+    "threads": 16,
+    "batch_size": 32,
+    "rep": 3,
+    "wall_seconds": 0.8841404000122566,
+    "out_path": "C:\\Users\\sdas8\\faiss-cpu-benchmark\\runs\\20261107T064707Z-full-8b401ae\\per_call\\b32_t16_rep3.json",
+    "worker_stdout": "ok threads=16 batch=32 rep=3 n_calls=16 sum_calls=0.1784s loop=0.1785s throughput=2870.1 qps"
+  },
+  {
+    "threads": 2,
+    "batch_size": 1,
+    "rep": 3,
+    "wall_seconds": 3.737265400006436,
+    "out_path": "C:\\Users\\sdas8\\faiss-cpu-benchmark\\runs\\20261107T064707Z-full-8b401ae\\per_call\\b1_t2_rep3.json",
+    "worker_stdout": "ok threads=2 batch=1 rep=3 n_calls=512 sum_calls=1.6347s loop=1.6359s throughput=313.2 qps"
+  },
+  {
+    "threads": 4,
+    "batch_size": 32,
+    "rep": 3,
+    "wall_seconds": 0.8192532999964897,
+    "out_path": "C:\\Users\\sdas8\\faiss-cpu-benchmark\\runs\\20261107T064707Z-full-8b401ae\\per_call\\b32_t4_rep3.json",
+    "worker_stdout": "ok threads=4 batch=32 rep=3 n_calls=16 sum_calls=0.1632s loop=0.1633s throughput=3138.0 qps"
+  },
+  {
+    "threads": 8,
+    "batch_size": 32,
+    "rep": 3,
+    "wall_seconds": 0.779176300013205,
+    "out_path": "C:\\Users\\sdas8\\faiss-cpu-benchmark\\runs\\20261107T064707Z-full-8b401ae\\per_call\\b32_t8_rep3.json",
+    "worker_stdout": "ok threads=8 batch=32 rep=3 n_calls=16 sum_calls=0.1398s loop=0.1400s throughput=3661.4 qps"
+  },
+  {
+    "threads": 4,
+    "batch_size": 1,
+    "rep": 3,
+    "wall_seconds": 3.7426878999976907,
+    "out_path": "C:\\Users\\sdas8\\faiss-cpu-benchmark\\runs\\20261107T064707Z-full-8b401ae\\per_call\\b1_t4_rep3.json",
+    "worker_stdout": "ok threads=4 batch=1 rep=3 n_calls=512 sum_calls=1.6803s loop=1.6816s throughput=304.7 qps"
+  },
+  {
+    "threads": 1,
+    "batch_size": 1,
+    "rep": 3,
+    "wall_seconds": 3.4516475000127684,
+    "out_path": "C:\\Users\\sdas8\\faiss-cpu-benchmark\\runs\\20261107T064707Z-full-8b401ae\\per_call\\b1_t1_rep3.json",
+    "worker_stdout": "ok threads=1 batch=1 rep=3 n_calls=512 sum_calls=1.5304s loop=1.5316s throughput=334.6 qps"
+  },
+  {
+    "threads": 1,
+    "batch_size": 32,
+    "rep": 3,
+    "wall_seconds": 1.2290791000123136,
+    "out_path": "C:\\Users\\sdas8\\faiss-cpu-benchmark\\runs\\20261107T064707Z-full-8b401ae\\per_call\\b32_t1_rep3.json",
+    "worker_stdout": "ok threads=1 batch=32 rep=3 n_calls=16 sum_calls=0.3357s loop=0.3358s throughput=1525.4 qps"
+  },
+  {
+    "threads": 1,
+    "batch_size": 1,
+    "rep": 4,
+    "wall_seconds": 3.622457799996482,
+    "out_path": "C:\\Users\\sdas8\\faiss-cpu-benchmark\\runs\\20261107T064707Z-full-8b401ae\\per_call\\b1_t1_rep4.json",
+    "worker_stdout": "ok threads=1 batch=1 rep=4 n_calls=512 sum_calls=1.6030s loop=1.6042s throughput=319.4 qps"
+  },
+  {
+    "threads": 4,
+    "batch_size": 32,
+    "rep": 4,
+    "wall_seconds": 0.805123400001321,
+    "out_path": "C:\\Users\\sdas8\\faiss-cpu-benchmark\\runs\\20261107T064707Z-full-8b401ae\\per_call\\b32_t4_rep4.json",
+    "worker_stdout": "ok threads=4 batch=32 rep=4 n_calls=16 sum_calls=0.1642s loop=0.1644s throughput=3117.4 qps"
+  },
+  {
+    "threads": 1,
+    "batch_size": 32,
+    "rep": 4,
+    "wall_seconds": 1.45957430000999,
+    "out_path": "C:\\Users\\sdas8\\faiss-cpu-benchmark\\runs\\20261107T064707Z-full-8b401ae\\per_call\\b32_t1_rep4.json",
+    "worker_stdout": "ok threads=1 batch=32 rep=4 n_calls=16 sum_calls=0.3328s loop=0.3329s throughput=1538.3 qps"
+  },
+  {
+    "threads": 4,
+    "batch_size": 1,
+    "rep": 4,
+    "wall_seconds": 3.6516152000112925,
+    "out_path": "C:\\Users\\sdas8\\faiss-cpu-benchmark\\runs\\20261107T064707Z-full-8b401ae\\per_call\\b1_t4_rep4.json",
+    "worker_stdout": "ok threads=4 batch=1 rep=4 n_calls=512 sum_calls=1.6133s loop=1.6146s throughput=317.4 qps"
+  },
+  {
+    "threads": 2,
+    "batch_size": 1,
+    "rep": 4,
+    "wall_seconds": 3.730818800017005,
+    "out_path": "C:\\Users\\sdas8\\faiss-cpu-benchmark\\runs\\20261107T064707Z-full-8b401ae\\per_call\\b1_t2_rep4.json",
+    "worker_stdout": "ok threads=2 batch=1 rep=4 n_calls=512 sum_calls=1.6067s loop=1.6078s throughput=318.7 qps"
+  },
+  {
+    "threads": 2,
+    "batch_size": 32,
+    "rep": 4,
+    "wall_seconds": 0.9429367999837268,
+    "out_path": "C:\\Users\\sdas8\\faiss-cpu-benchmark\\runs\\20261107T064707Z-full-8b401ae\\per_call\\b32_t2_rep4.json",
+    "worker_stdout": "ok threads=2 batch=32 rep=4 n_calls=16 sum_calls=0.2086s loop=0.2088s throughput=2453.9 qps"
+  },
+  {
+    "threads": 16,
+    "batch_size": 32,
+    "rep": 4,
+    "wall_seconds": 0.9830133999930695,
+    "out_path": "C:\\Users\\sdas8\\faiss-cpu-benchmark\\runs\\20261107T064707Z-full-8b401ae\\per_call\\b32_t16_rep4.json",
+    "worker_stdout": "ok threads=16 batch=32 rep=4 n_calls=16 sum_calls=0.2192s loop=0.2193s throughput=2335.7 qps"
+  },
+  {
+    "threads": 8,
+    "batch_size": 32,
+    "rep": 4,
+    "wall_seconds": 0.8161392999754753,
+    "out_path": "C:\\Users\\sdas8\\faiss-cpu-benchmark\\runs\\20261107T064707Z-full-8b401ae\\per_call\\b32_t8_rep4.json",
+    "worker_stdout": "ok threads=8 batch=32 rep=4 n_calls=16 sum_calls=0.1466s loop=0.1467s throughput=3492.2 qps"
+  }
+]

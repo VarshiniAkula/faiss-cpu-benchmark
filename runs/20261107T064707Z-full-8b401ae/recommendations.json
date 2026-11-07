@@ -1,0 +1,140 @@
+{
+  "decision_rule": "Recommendation is CLEAR only if the best config's median is outside the [min, max] observed range of every other config measured in this run. This is a descriptive overlap check, not a formal significance test.",
+  "scaling_judgment_rule": "regression = any step drops median by >1% vs previous step; continued_scaling = every step improves median by >1%; plateau = otherwise. Descriptive labels, not tests.",
+  "interactive_batch1_p95_ms": {
+    "status": "no_clear_winner",
+    "lower_better": true,
+    "best_observed": {
+      "threads": 1,
+      "median": 3.823339995869901,
+      "min_max": [
+        3.6068299901671708,
+        3.91376000479795
+      ]
+    },
+    "default_if_no_winner": {
+      "threads": 1
+    },
+    "all_configs": [
+      {
+        "threads": 1,
+        "median": 3.823339995869901,
+        "min_max": [
+          3.6068299901671708,
+          3.91376000479795
+        ],
+        "n_reps": 5,
+        "speedup_vs_1thread": 1.0,
+        "parallel_efficiency": 1.0
+      },
+      {
+        "threads": 2,
+        "median": 3.9596500020707026,
+        "min_max": [
+          3.742829996917862,
+          4.126344987889752
+        ],
+        "n_reps": 5,
+        "speedup_vs_1thread": 0.9655752386878845,
+        "parallel_efficiency": 0.48278761934394226
+      },
+      {
+        "threads": 4,
+        "median": 3.960364991507958,
+        "min_max": [
+          3.6207350087352097,
+          3.97580999560887
+        ],
+        "n_reps": 5,
+        "speedup_vs_1thread": 0.9654009173568916,
+        "parallel_efficiency": 0.2413502293392229
+      }
+    ],
+    "scaling_judgment": "plateau",
+    "baseline_1thread_median": 3.823339995869901,
+    "baseline_1thread_min_max": [
+      3.6068299901671708,
+      3.91376000479795
+    ],
+    "pct_vs_1thread_median": 0.0
+  },
+  "throughput_batch32_qps": {
+    "status": "clear_winner",
+    "lower_better": false,
+    "best_observed": {
+      "threads": 8,
+      "median": 3492.2226412682735,
+      "min_max": [
+        3172.9427313829383,
+        3661.366502473869
+      ]
+    },
+    "default_if_no_winner": {
+      "threads": 1
+    },
+    "all_configs": [
+      {
+        "threads": 1,
+        "median": 1600.4086041959013,
+        "min_max": [
+          1525.392572705741,
+          1625.3534825955855
+        ],
+        "n_reps": 5,
+        "speedup_vs_1thread": 1.0,
+        "parallel_efficiency": 1.0
+      },
+      {
+        "threads": 2,
+        "median": 2413.56991908578,
+        "min_max": [
+          2255.469846374736,
+          2525.9277596303655
+        ],
+        "n_reps": 5,
+        "speedup_vs_1thread": 1.5080960654410116,
+        "parallel_efficiency": 0.7540480327205058
+      },
+      {
+        "threads": 4,
+        "median": 3138.0297949007145,
+        "min_max": [
+          3002.184205578245,
+          3349.608155096124
+        ],
+        "n_reps": 5,
+        "speedup_vs_1thread": 1.9607678855721757,
+        "parallel_efficiency": 0.49019197139304393
+      },
+      {
+        "threads": 8,
+        "median": 3492.2226412682735,
+        "min_max": [
+          3172.9427313829383,
+          3661.366502473869
+        ],
+        "n_reps": 5,
+        "speedup_vs_1thread": 2.182081895906129,
+        "parallel_efficiency": 0.2727602369882661
+      },
+      {
+        "threads": 16,
+        "median": 2870.125691148879,
+        "min_max": [
+          2318.060543393168,
+          2981.0823540368838
+        ],
+        "n_reps": 5,
+        "speedup_vs_1thread": 1.7933705702556666,
+        "parallel_efficiency": 0.11208566064097916
+      }
+    ],
+    "scaling_judgment": "regression",
+    "baseline_1thread_median": 1600.4086041959013,
+    "baseline_1thread_min_max": [
+      1525.392572705741,
+      1625.3534825955855
+    ],
+    "pct_vs_1thread_median": 118.20818959061288
+  }
+}
