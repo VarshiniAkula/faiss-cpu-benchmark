@@ -69,6 +69,13 @@ def sha256_file(path: Path, chunk: int = 1 << 20) -> str:
 
 
 def git_meta(root: Path) -> dict:
+    """Returns commit, short, branch, plus two dirty signals:
+
+      source_dirty  -- any TRACKED file has uncommitted changes (worktree
+                       or staged). This is the honest "source state".
+      has_untracked -- any untracked files exist (e.g. new run_dirs);
+                       informational, does not imply source drift.
+    """
     def _git(args: list[str]) -> str | None:
         try:
             r = subprocess.run(["git", *args], cwd=root,
@@ -76,13 +83,35 @@ def git_meta(root: Path) -> dict:
             return r.stdout.strip() if r.returncode == 0 else None
         except Exception:
             return None
+
+    def _git_quiet(args: list[str]) -> int | None:
+        try:
+            r = subprocess.run(["git", *args], cwd=root,
+                               capture_output=True, text=True, timeout=5)
+            return r.returncode
+        except Exception:
+            return None
+
     commit = _git(["rev-parse", "HEAD"])
     short = _git(["rev-parse", "--short", "HEAD"])
-    status = _git(["status", "--porcelain"])
     branch = _git(["rev-parse", "--abbrev-ref", "HEAD"])
+    # Tracked-only dirtiness: both worktree and index.
+    dq = _git_quiet(["diff", "--quiet"])
+    cq = _git_quiet(["diff", "--cached", "--quiet"])
+    source_dirty = (
+        None if dq is None or cq is None
+        else (dq != 0 or cq != 0)
+    )
+    untracked = _git(["ls-files", "--others", "--exclude-standard"])
+    has_untracked = (
+        None if untracked is None else bool(untracked.strip())
+    )
     return {
         "commit": commit, "commit_short": short,
-        "dirty": bool(status) if status is not None else None,
+        "source_dirty": source_dirty,
+        "has_untracked": has_untracked,
+        # Kept for backwards compat with the schema-2 manifest consumers:
+        "dirty": source_dirty,
         "branch": branch,
     }
 
