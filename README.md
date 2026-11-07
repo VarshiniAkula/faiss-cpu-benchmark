@@ -146,9 +146,11 @@ barrier. Work distribution across workers is balanced.
   distribution, a mix of fast and slow cores would produce a visible
   imbalance in effective-time per thread; we see none.
 - The compute itself is **OpenBLAS `sgemm_kernel_HASWELL`** — the
-  Haswell-AVX2 kernel, not an AVX-512 kernel — on this
-  i9-14900HX. OpenBLAS's windows wheel ships that kernel; this is a
-  property of the shipped BLAS build, not of the CPU.
+  Haswell-AVX2 kernel. **AVX2 is the widest vector ISA this CPU
+  supports:** the i9-14900HX is Raptor Lake Refresh, which (like
+  Raptor Lake, 13th gen) has no AVX-512 support on the P-cores or
+  E-cores. The Haswell-AVX2 sgemm kernel is therefore the expected
+  code path for `sgemm` on this CPU, not a suboptimal fallback.
 
 **What is still unresolved:**
 
@@ -160,8 +162,6 @@ barrier. Work distribution across workers is balanced.
   insights will not be available. Make sure the sampling driver is
   installed and enabled on your system`). The exported `by_cpu.csv`
   files are consequently empty.
-- Whether swapping OpenBLAS for an AVX-512 BLAS (e.g. MKL) would
-  change the regression knee. Not tested.
 - Whether running with `KMP_BLOCKTIME=0` or thread binding
   (`OMP_PROC_BIND=close`) would reduce the observed spin time. Not
   tested.
@@ -182,13 +182,13 @@ mechanisms for the 16-thread regression that remain live:
 - OMP thread-management overhead (barriers, work distribution) at
   higher thread counts.
 
-**Which of these actually dominates is unresolved.** FAISS's internal
-work-partitioning strategy for `IndexFlatL2` is not characterised by
-this experiment and should not be assumed. Confirming the mechanism
-requires VTune Microarchitecture Exploration + thread/core placement
-evidence at 16 threads (and comparisons at 1, 4, 8 threads), which
-is the Stage 2/3 work still blocked on VTune install. Commands are
-in `docs/VTUNE_COMMANDS.md`.
+**Which of these actually dominates was investigated with VTune
+Hotspots at 1/4/8/16 threads** (see the "Why 16 threads regressed"
+section below for the finding and evidence). VTune
+Microarchitecture Exploration and `-group-by=cpu` placement evidence
+were **not** collected because this consumer SKU + non-admin install
+lacks the VTune kernel sampling driver; see Stage 2/3 status below
+and `docs/VTUNE_COMMANDS.md`.
 
 ## Historical results preserved
 
@@ -400,7 +400,14 @@ python tests\test_regression.py
 
 All 47 checks must pass.
 
-### 7. VTune profile collection (blocked on install — see `docs/VTUNE_COMMANDS.md`)
+### 7. VTune profile collection
+
+Installed VTune 2025.3.0 via `winget install Intel.OneAPI.BaseToolkit`.
+Hotspots at 1/4/8/16 threads are already collected and committed in
+`runs/20261107T012857Z-vtune-hotspots-f085a13/`. To reproduce or add
+further analyses, see `docs/VTUNE_COMMANDS.md`.
+Microarchitecture Exploration requires the VTune kernel sampling
+driver (not available on this consumer-SKU + non-admin install).
 
 ## Repository layout (additions from this extension)
 
@@ -442,8 +449,10 @@ runs/
   themselves are gitignored and not distributed in the repo); every
   worker refuses to run if the dataset drifts.
 - No hardware counters, cache/bandwidth, RAPL energy, or per-core
-  frequency were collected. VTune collection is Stage 2/3 and is
-  blocked on install.
+  frequency were collected. VTune Hotspots (user-mode sampling)
+  **was** collected at 1/4/8/16 threads; VTune Microarchitecture
+  Exploration (hardware-event sampling) was not, because the VTune
+  kernel sampling driver is not available on this host.
 
 ## What this extension verified
 
@@ -462,10 +471,11 @@ runs/
   spin / kernel-wait time scales near-linearly with thread count
   while effective (productive) CPU time does not; per-thread work
   distribution at 16 threads is balanced (no E-core imbalance
-  signature); productive compute is OpenBLAS `sgemm_kernel_HASWELL`
-  (AVX2, not AVX-512) on this Windows install. Hotspots evidence
-  supports the "OMP sync overhead dominates at 16 threads" reading
-  and *does not support* the earlier "spills onto E-cores"
+  signature); productive compute is OpenBLAS `sgemm_kernel_HASWELL`,
+  which is the expected AVX2 kernel for this CPU (the i9-14900HX is
+  Raptor Lake Refresh and does not support AVX-512 at all). Hotspots
+  evidence supports the "OMP sync overhead dominates at 16 threads"
+  reading and *does not support* the earlier "spills onto E-cores"
   hypothesis.
 - **Validation hardening preserved:** all existing failure modes
   (forged sums, manifest mismatches, incomplete runs, missing
@@ -476,8 +486,9 @@ runs/
 - Which specific CPUs the OS scheduler used for the default-affinity
   runs. `-report hw-events -group-by=cpu` requires the VTune kernel
   sampling driver + admin, not available on this host.
-- Whether swapping OpenBLAS for an AVX-512 BLAS (e.g. Intel MKL)
-  moves the regression knee. Not tested.
+- Whether changing the OpenMP runtime knobs (`KMP_BLOCKTIME`,
+  `OMP_PROC_BIND`, `OMP_WAIT_POLICY`) reduces the observed spin time
+  at 8/16 threads. Not tested.
 - Cause of the wide E-core per-rep variability in the P/E v2 run
   (353–1411 qps). Candidates include kernel/driver work landing on
   the restricted CPU set and thermal transients; neither measured.
