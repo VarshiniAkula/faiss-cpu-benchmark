@@ -56,9 +56,12 @@ this run. This is a descriptive overlap check, **not a formal
 significance test**.
 
 - **Interactive: `no_clear_winner`.** The best median is t=2 (3.986 ms),
-  but t=1's range `[3.648, 4.134]` and t=4's range `[4.072, 4.286]`
-  both touch t=2's median. With 5 reps the between-thread effect is
-  not distinguishable from per-rep noise. Default recommendation: **1
+  and t=1's range `[3.648, 4.134]` contains that median (t=4's range
+  `[4.072, 4.286]` sits entirely above it). The documented rule only
+  requires one other config's `[min, max]` to contain the best
+  median, so this single overlap is sufficient to return
+  `no_clear_winner`. With 5 reps the between-thread effect is not
+  distinguishable from per-rep noise. Default recommendation: **1
   thread** (keeps the system simple; measured p95 across all three
   thread counts sits between 3.6 and 4.3 ms).
 - **Throughput: `clear_winner` at 4 threads.** Its min (2759.8 qps)
@@ -234,8 +237,10 @@ nominally platform-independent for a given NumPy version, so the
 reported Linux mismatch is surprising and remains **unresolved**. What
 can be stated honestly:
 
-- The benchmark is reproducible **given the committed `.npy` files**:
-  the per-run manifest records exact SHA-256 hashes and every worker
+- The benchmark is reproducible **given the original Legion-generated
+  `.npy` files identified by the committed hashes** (the `.npy` files
+  themselves are gitignored and are not distributed in the repo): the
+  per-run manifest records exact SHA-256 hashes and every worker
   refuses to run if the dataset drifts.
 - Byte-identical regeneration **from seeds across heterogeneous
   platforms is not established**.
