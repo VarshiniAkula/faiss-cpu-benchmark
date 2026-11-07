@@ -183,7 +183,8 @@ def clear_prior_artefacts(run_dir: Path) -> None:
 def write_manifest(run_dir: Path, mode: str, reps: int, seed: int,
                    queries_per_rep: int, k: int,
                    configs: list[tuple[int, int]],
-                   data_dir: Path) -> dict:
+                   data_dir: Path,
+                   git: dict | None = None) -> dict:
     expected_entries = (
         [[t, b, r] for r in range(reps) for (t, b) in configs]
         if mode == "full" else [[1, 1, 0]]
@@ -204,7 +205,7 @@ def write_manifest(run_dir: Path, mode: str, reps: int, seed: int,
         "reps": reps,
         "expected_entries": expected_entries,
         "dataset_sha256": hashes,
-        "git": git_meta(ROOT),
+        "git": git if git is not None else git_meta(ROOT),
         "python_version": sys.version.split()[0],
         "packages": {
             "faiss-cpu": pkg_version("faiss-cpu"),
@@ -334,7 +335,7 @@ def main() -> None:
     )
     manifest = write_manifest(run_dir, args.mode, reps, args.seed,
                               args.queries_per_rep, args.k, configs,
-                              data_dir)
+                              data_dir, git=git)
 
     expected_hashes = manifest["dataset_sha256"]
     print(f"run_dir={run_dir}")
