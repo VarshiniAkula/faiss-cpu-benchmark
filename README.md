@@ -58,47 +58,57 @@ With 5 reps the between-thread effect is within per-rep noise.
 
 ### P-core vs E-core placement (batch=32, 4 requested threads)
 
-From `runs/20261107T071454Z-pe-9f2ab32/`, three isolated sub-runs with
-identical workload but different process-level CPU affinity. Topology
-(from `scripts/topology.py` via `GetLogicalProcessorInformationEx`):
-8 physical P-cores exposed as logical CPUs 0..15 (SMT), 16 physical
-E-cores as logical CPUs 16..31 (no SMT), `EfficiencyClass` 1 vs 0.
+From `runs/20261107T080151Z-pe2-11793f1/`, commit `11793f1`,
+source clean, **10 interleaved repetitions**, one measurement per
+placement per rep in a shuffled order. 120 per-call records total
+(10 reps × 3 placements × 4 configs) across three sub-runs. Status
+`completed` and **0 affinity mismatches** in every sub-run.
 
-| placement             | median qps | min    | max    | per-rep qps         |
-|-----------------------|------------|--------|--------|---------------------|
-| default scheduler     | 3087.0     | 2686.4 | 3351.7 | 3087, 2686, 2968, 3199, 3352 |
-| 4 physical P-cores    | **3290.7** | 397.3  | 3395.5 | 397, 3291, 3131, 3395, 3308 |
-| 4 physical E-cores    | 1235.0     | 342.2  | 1276.5 | 1277, 1235, 1245, 342, 418 |
+Topology (from `scripts/topology.py` via
+`GetLogicalProcessorInformationEx`): 8 physical P-cores exposed as
+logical CPUs 0..15 (SMT), 16 physical E-cores as logical CPUs 16..31
+(no SMT), `EfficiencyClass` 1 vs 0.
 
-Headline ratio (medians): **P-cores / E-cores ≈ 2.66x**. The default
-scheduler median lands between the two. Whether the OS actually placed
-most default-scheduler threads on P-cores was **not measured** here;
-VTune thread/core placement evidence (Stage 3) would be needed to
-support such a claim.
+Power state (from `power_state.json`): AC power, "Balanced" plan,
+battery at 100% at both start and end of the run.
 
-Two outlier reps (one in P-cores, two in E-cores) are 3–8x slower than
-the rest of their sub-run. Observed affinity still matches requested
-(verified in each per-call record's `cpu_affinity.observed_mask_hex`);
-cause of the drops is **not measured** (candidate hypotheses: cold OMP
-thread-pool recreation when CPU set is restricted, kernel/driver work
-landing on the affinity set, thermal settling — none verified without
-hardware counters or VTune).
+| placement            | median qps | min   | max    | per-rep qps (10) |
+|----------------------|------------|-------|--------|------------------|
+| default scheduler    | 3085.6     | 2969.1 | 3279.0 | 3080, 3073, 3037, 3138, 3279, 3185, 3267, 2969, 3091, 3064 |
+| 4 physical P-cores   | **3283.3** | 3115.4 | 3468.6 | 3200, 3273, 3115, 3265, 3267, 3357, 3469, 3294, 3294, 3397 |
+| 4 physical E-cores   | 956.3      | 353.5  | 1411.2 | 354, 1236, 456, 1077, 1411, 528, 1019, 667, 1229, 894 |
 
-**Preliminary status.** The 2.66x figure is from 5-rep sub-runs executed
-back-to-back per placement. Follow-up work (`scripts/pe_experiment.py`
-rewritten for this stage) interleaves placements per repetition and
-raises the rep count; see the new PE run and comparison for the current
-figure that supersedes this preliminary value.
+Headline ratio (medians): **P-cores / E-cores ≈ 3.43x**. This
+supersedes the preliminary 2.66x figure from the older 5-rep
+back-to-back run (`runs/20261107T071454Z-pe-9f2ab32/`, preserved).
+
+Observations:
+
+- P-core and default-scheduler per-rep ranges tightened vs the 5-rep
+  v1 run (no outliers), consistent with interleaving removing the
+  back-to-back cold-start bias v1 exhibited.
+- E-core per-rep throughput remains highly variable (353–1411 qps,
+  factor of 4 between min and max) **even with interleaving**. The
+  median (956 qps) is more robust across 10 reps, but we are
+  reporting the full range for honesty.
+- The default-scheduler median (3086 qps) is close to the 4-P-core
+  median (3283 qps), both well above the 4-E-core median. What the
+  default scheduler actually did with the 4 worker threads on this
+  machine was **not measured**; a VTune Hotspots `by_cpu` table is
+  the direct way to establish it (see `docs/VTUNE_COMMANDS.md`).
+- Observed `cpu_affinity.observed_cpu_ids` matched the requested set
+  in every per-call record of the P- and E-core sub-runs
+  (`affinity_check.mismatches == 0`).
 
 ### Why 16 threads regressed — mechanism unresolved
 
 **Observation (scaling):** throughput peaks at 8 threads and drops
 ~18% at 16 threads.
 
-**Observation (P/E, preliminary):** on 4 physical E-cores the same
-workload runs ~2.66x slower than on 4 physical P-cores. This is a
-property of the per-core work rate, not a direct explanation of the
-scaling curve.
+**Observation (P/E, v2):** on 4 physical E-cores the same workload
+runs ~3.43x slower than on 4 physical P-cores. This is a property of
+the per-core work rate on this CPU, not a direct explanation of the
+scaling curve at 16 threads.
 
 **Important correction to earlier wording.** This machine's 8 P-cores
 expose **16 logical processors via SMT**, so 16 OpenMP threads can
@@ -131,8 +141,9 @@ in `docs/VTUNE_COMMANDS.md`.
 | 6604f72   | `results/`                                     | original run, legacy schema                         |
 | 6604f72   | `runs/20261107T032705Z-full-6604f72/`          | re-analysed under schema 2 (same data)              |
 | 2f23831   | `runs/20261107T042639Z-full-2f23831/`          | validated schema-2 full run, 3-thread set           |
-| 8b401ae   | `runs/20261107T064707Z-full-8b401ae/`          | **new 5-thread scaling (1,2,4,8,16)**               |
-| 9f2ab32   | `runs/20261107T071454Z-pe-9f2ab32/`            | **new P-core vs E-core experiment**                 |
+| 8b401ae   | `runs/20261107T064707Z-full-8b401ae/`          | 5-thread scaling (1,2,4,8,16)                       |
+| 9f2ab32   | `runs/20261107T071454Z-pe-9f2ab32/`            | P/E experiment v1 (5 reps, sequential, preserved)   |
+| 11793f1   | `runs/20261107T080151Z-pe2-11793f1/`           | **P/E experiment v2 (10 reps, interleaved)**        |
 
 The historical 3-thread runs are still accepted by the current
 analyser without modification; new runs add two threads at the top
@@ -361,13 +372,11 @@ runs/
 - **Thread scaling, 1→16 threads at batch=32:** peak at 8 threads
   (+118% median vs 1 thread), regression at 16 threads (+79%,
   down from +118%). Scaling judgment labelled `regression`.
-- **P-core vs E-core affinity at 4 threads (preliminary):** medians
-  3291 qps (P-cores) vs 1235 qps (E-cores), ratio ~2.66x; default
-  scheduler median between them. **Preliminary** — placements were
-  not interleaved and reps=5. A re-run with interleaved placements
-  and 10 reps is the authoritative PE number; see the `*-pe2-*` run
-  dir in the headline P/E section once published. Observed affinity
-  verified to match requested in every per-call record.
+- **P-core vs E-core affinity at 4 threads (v2, 10 interleaved reps):**
+  medians 3283 qps (P-cores) vs 956 qps (E-cores), ratio ~3.43x;
+  default scheduler median 3086 qps. 0 affinity mismatches across
+  120 per-call records. Full per-rep values and the preserved v1
+  run are in the headline P/E section.
 - **Topology discovery:** `GetLogicalProcessorInformationEx` cleanly
   separates 8 P-cores from 16 E-cores on this hybrid CPU; result is
   deterministic and testable.

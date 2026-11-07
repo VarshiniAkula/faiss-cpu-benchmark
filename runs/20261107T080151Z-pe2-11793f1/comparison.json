@@ -1,0 +1,129 @@
+{
+  "experiment": "p_vs_e_core_v2",
+  "protocol": "interleaved_placement_per_repetition",
+  "base_dir": "C:\\Users\\sdas8\\faiss-cpu-benchmark\\runs\\20261107T080151Z-pe2-11793f1",
+  "git": {
+    "commit": "11793f10086aba62faf00adb1e3a361f8531faff",
+    "commit_short": "11793f1",
+    "branch": "main",
+    "source_dirty": false
+  },
+  "threads_requested": 4,
+  "n_physical_cores_per_pool": 4,
+  "reps": 10,
+  "queries_per_rep": 512,
+  "chosen_p_core_cpus": [
+    0,
+    2,
+    4,
+    6
+  ],
+  "chosen_e_core_cpus": [
+    16,
+    17,
+    18,
+    19
+  ],
+  "sub_runs": [
+    {
+      "label": "default_scheduler",
+      "affinity_requested": null,
+      "sub_dir": "C:\\Users\\sdas8\\faiss-cpu-benchmark\\runs\\20261107T080151Z-pe2-11793f1\\sub_default_scheduler",
+      "status": {
+        "state": "completed",
+        "mode": "full",
+        "finished_at_utc": "2026-11-07T08:09:19Z",
+        "n_records_present": 40,
+        "n_entries_expected": 40,
+        "missing": [],
+        "extra": [],
+        "duplicates": []
+      },
+      "affinity_check": {
+        "records_checked": 40,
+        "mismatches": []
+      },
+      "throughput_batch32_at_target_threads": {
+        "threads": 4,
+        "median": 3085.6099089825602,
+        "min_max": [
+          2969.126306510155,
+          3279.011888168036
+        ],
+        "n_reps": 10,
+        "speedup_vs_1thread": 1.8983611128344535,
+        "parallel_efficiency": 0.4745902782086134
+      }
+    },
+    {
+      "label": "4_physical_p_cores",
+      "affinity_requested": [
+        0,
+        2,
+        4,
+        6
+      ],
+      "sub_dir": "C:\\Users\\sdas8\\faiss-cpu-benchmark\\runs\\20261107T080151Z-pe2-11793f1\\sub_4_physical_p_cores",
+      "status": {
+        "state": "completed",
+        "mode": "full",
+        "finished_at_utc": "2026-11-07T08:09:19Z",
+        "n_records_present": 40,
+        "n_entries_expected": 40,
+        "missing": [],
+        "extra": [],
+        "duplicates": []
+      },
+      "affinity_check": {
+        "records_checked": 40,
+        "mismatches": []
+      },
+      "throughput_batch32_at_target_threads": {
+        "threads": 4,
+        "median": 3283.3205214106365,
+        "min_max": [
+          3115.4354006894787,
+          3468.576188233024
+        ],
+        "n_reps": 10,
+        "speedup_vs_1thread": 2.151374606601168,
+        "parallel_efficiency": 0.537843651650292
+      }
+    },
+    {
+      "label": "4_physical_e_cores",
+      "affinity_requested": [
+        16,
+        17,
+        18,
+        19
+      ],
+      "sub_dir": "C:\\Users\\sdas8\\faiss-cpu-benchmark\\runs\\20261107T080151Z-pe2-11793f1\\sub_4_physical_e_cores",
+      "status": {
+        "state": "completed",
+        "mode": "full",
+        "finished_at_utc": "2026-11-07T08:09:19Z",
+        "n_records_present": 40,
+        "n_entries_expected": 40,
+        "missing": [],
+        "extra": [],
+        "duplicates": []
+      },
+      "affinity_check": {
+        "records_checked": 40,
+        "mismatches": []
+      },
+      "throughput_batch32_at_target_threads": {
+        "threads": 4,
+        "median": 956.3225348600336,
+        "min_max": [
+          353.47545070755416,
+          1411.1532927805279
+        ],
+        "n_reps": 10,
+        "speedup_vs_1thread": 1.5160226795239307,
+        "parallel_efficiency": 0.37900566988098267
+      }
+    }
+  ]
+}

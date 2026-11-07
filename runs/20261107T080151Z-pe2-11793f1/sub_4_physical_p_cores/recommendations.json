@@ -1,0 +1,96 @@
+{
+  "decision_rule": "Recommendation is CLEAR only if the best config's median is outside the [min, max] observed range of every other config measured in this run. This is a descriptive overlap check, not a formal significance test.",
+  "scaling_judgment_rule": "regression = any step drops median by >1% vs previous step; continued_scaling = every step improves median by >1%; plateau = otherwise. Descriptive labels, not tests.",
+  "interactive_batch1_p95_ms": {
+    "status": "no_clear_winner",
+    "lower_better": true,
+    "best_observed": {
+      "threads": 1,
+      "median": 3.861199994571507,
+      "min_max": [
+        3.70958501152927,
+        4.077510010392871
+      ]
+    },
+    "default_if_no_winner": {
+      "threads": 1
+    },
+    "all_configs": [
+      {
+        "threads": 1,
+        "median": 3.861199994571507,
+        "min_max": [
+          3.70958501152927,
+          4.077510010392871
+        ],
+        "n_reps": 10,
+        "speedup_vs_1thread": 1.0,
+        "parallel_efficiency": 1.0
+      },
+      {
+        "threads": 4,
+        "median": 3.9752124961523805,
+        "min_max": [
+          3.723185003036633,
+          4.021614987868815
+        ],
+        "n_reps": 10,
+        "speedup_vs_1thread": 0.9713191428907948,
+        "parallel_efficiency": 0.2428297857226987
+      }
+    ],
+    "scaling_judgment": "continued_scaling",
+    "baseline_1thread_median": 3.861199994571507,
+    "baseline_1thread_min_max": [
+      3.70958501152927,
+      4.077510010392871
+    ],
+    "pct_vs_1thread_median": 0.0
+  },
+  "throughput_batch32_qps": {
+    "status": "clear_winner",
+    "lower_better": false,
+    "best_observed": {
+      "threads": 4,
+      "median": 3283.3205214106365,
+      "min_max": [
+        3115.4354006894787,
+        3468.576188233024
+      ]
+    },
+    "default_if_no_winner": {
+      "threads": 1
+    },
+    "all_configs": [
+      {
+        "threads": 1,
+        "median": 1526.1500769490647,
+        "min_max": [
+          1483.2196293524487,
+          1643.3326271234007
+        ],
+        "n_reps": 10,
+        "speedup_vs_1thread": 1.0,
+        "parallel_efficiency": 1.0
+      },
+      {
+        "threads": 4,
+        "median": 3283.3205214106365,
+        "min_max": [
+          3115.4354006894787,
+          3468.576188233024
+        ],
+        "n_reps": 10,
+        "speedup_vs_1thread": 2.151374606601168,
+        "parallel_efficiency": 0.537843651650292
+      }
+    ],
+    "scaling_judgment": "continued_scaling",
+    "baseline_1thread_median": 1526.1500769490647,
+    "baseline_1thread_min_max": [
+      1483.2196293524487,
+      1643.3326271234007
+    ],
+    "pct_vs_1thread_median": 115.1374606601168
+  }
+}
