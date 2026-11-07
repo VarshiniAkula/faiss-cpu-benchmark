@@ -1,0 +1,19 @@
+{
+  "mode": "smoke",
+  "configs_present": [
+    [
+      1,
+      1
+    ]
+  ],
+  "reps_covered": [
+    0
+  ],
+  "interactive_analyzed": true,
+  "throughput_analyzed": false,
+  "figure_rendered": true,
+  "comparisons_not_performed": [
+    "cross-thread p95 (smoke)",
+    "batch-32 throughput (smoke)"
+  ]
+}

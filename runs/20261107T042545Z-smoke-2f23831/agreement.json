@@ -1,0 +1,27 @@
+{
+  "reference_rule": "per-rep: (threads=1, batch=1, same rep). Missing reference for any non-reference record is an error.",
+  "per_run": [
+    {
+      "threads": 1,
+      "batch_size": 1,
+      "rep": 0,
+      "n_queries_compared": 512,
+      "n_identical_top5_sets": 512,
+      "fraction_identical": 1.0
+    }
+  ],
+  "per_config_summary": [
+    {
+      "threads": 1,
+      "batch_size": 1,
+      "n_reps": 1,
+      "min_fraction_identical": 1.0,
+      "median_fraction_identical": 1.0,
+      "max_fraction_identical": 1.0
+    }
+  ],
+  "missing_references": [],
+  "reps_covered": [
+    0
+  ]
+}

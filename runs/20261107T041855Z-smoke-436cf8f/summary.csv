@@ -1,0 +1,2 @@
+threads,batch_size,rep,n_calls,queries,sum_call_durations_s,elapsed_around_loop_s,mean_call_ms,median_call_ms,p95_call_ms,throughput_qps_search_only
+1,1,0,512,512,1.906225100334268,1.9077813999901991,3.7230958990903673,3.593500005081296,4.618704998574685,268.59367233713255

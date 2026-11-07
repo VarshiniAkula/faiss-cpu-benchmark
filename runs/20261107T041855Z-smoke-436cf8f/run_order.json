@@ -1,0 +1,10 @@
+[
+  {
+    "threads": 1,
+    "batch_size": 1,
+    "rep": 0,
+    "wall_seconds": 4.321575799986022,
+    "out_path": "C:\\Users\\sdas8\\faiss-cpu-benchmark\\runs\\20261107T041855Z-smoke-436cf8f\\per_call\\b1_t1_rep0.json",
+    "worker_stdout": "ok threads=1 batch=1 rep=0 n_calls=512 sum_calls=1.9062s loop=1.9078s throughput=268.6 qps"
+  }
+]

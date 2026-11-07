@@ -1,0 +1,25 @@
+{
+  "decision_rule": "Recommendation is CLEAR only if the best config's median is outside the [min, max] observed range of every other config measured in this run. This is a descriptive overlap check, not a formal significance test.",
+  "interactive_batch1_p95_ms": {
+    "status": "single_configuration_only",
+    "only_measured": {
+      "threads": 1,
+      "metric": "p95_call_ms",
+      "median": 4.618704998574685,
+      "min_max": [
+        4.618704998574685,
+        4.618704998574685
+      ]
+    },
+    "baseline_1thread_median": 4.618704998574685,
+    "baseline_1thread_min_max": [
+      4.618704998574685,
+      4.618704998574685
+    ],
+    "pct_vs_1thread_median": 0.0
+  },
+  "throughput_batch32_qps": {
+    "status": "insufficient_data",
+    "reason": "no records for this batch size in this run"
+  }
+}
