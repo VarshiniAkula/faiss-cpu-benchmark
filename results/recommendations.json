@@ -1,0 +1,30 @@
+{
+  "interactive_best": {
+    "threads": 4,
+    "p95_ms_median": 3.8827200114610605,
+    "pct_vs_1thread": -0.9726191421514074,
+    "baseline_1thread_p95_ms_median": 3.920854997704737,
+    "baseline_1thread_p95_ms_min_max": [
+      3.712115006055683,
+      4.045185016002505
+    ],
+    "best_min_max": [
+      3.8032799915526994,
+      4.115374997491017
+    ]
+  },
+  "throughput_best": {
+    "threads": 4,
+    "qps_median": 2755.866308433986,
+    "pct_vs_1thread": 82.680026176543,
+    "baseline_1thread_qps_median": 1508.5756040842152,
+    "baseline_1thread_qps_min_max": [
+      1476.3437538710343,
+      1540.0589794712735
+    ],
+    "best_min_max": [
+      2642.9994326176334,
+      3100.6737909007325
+    ]
+  }
+}

@@ -1,0 +1,8 @@
+# Regeneratable from scripts/make_data.py (seeded, deterministic).
+data/xb.npy
+data/xq.npy
+
+# Local env.
+.venv/
+__pycache__/
+*.pyc

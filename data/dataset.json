@@ -1,0 +1,10 @@
+{
+  "nb": 50000,
+  "nq": 512,
+  "d": 384,
+  "dtype": "float32",
+  "metric": "L2",
+  "index_type": "IndexFlatL2",
+  "db_seed": 20261106,
+  "query_seed": 20261107
+}

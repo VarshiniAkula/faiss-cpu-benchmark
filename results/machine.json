@@ -1,0 +1,40 @@
+{
+  "python_version": "3.11.9",
+  "python_executable": "C:\\Users\\sdas8\\AppData\\Local\\Microsoft\\WindowsApps\\PythonSoftwareFoundation.Python.3.11_qbz5n2kfra8p0\\python.exe",
+  "platform": "Windows-10-10.0.26300-SP0",
+  "machine": "AMD64",
+  "processor_string": "Intel64 Family 6 Model 183 Stepping 1, GenuineIntel",
+  "wsl": false,
+  "native_windows": true,
+  "cpu_wmi": {
+    "Name": "Intel(R) Core(TM) i9-14900HX",
+    "Manufacturer": "GenuineIntel",
+    "NumberOfCores": 24,
+    "NumberOfLogicalProcessors": 32,
+    "MaxClockSpeed": 2200,
+    "L2CacheSize": 32768,
+    "L3CacheSize": 36864
+  },
+  "os_wmi": {
+    "Caption": "Microsoft Windows 11 Home",
+    "Version": "10.0.26300",
+    "BuildNumber": "26300",
+    "OSArchitecture": "64-bit",
+    "TotalVisibleMemorySize": 16494456
+  },
+  "battery_wmi": {
+    "BatteryStatus": 2,
+    "EstimatedChargeRemaining": 37
+  },
+  "active_power_plan": "Power Scheme GUID: 381b4222-f694-41f0-9685-ff5bb260df2e  (Balanced)",
+  "env_thread_vars_at_inspect": {
+    "OMP_NUM_THREADS": null,
+    "MKL_NUM_THREADS": null,
+    "OPENBLAS_NUM_THREADS": null,
+    "VECLIB_MAXIMUM_THREADS": null,
+    "NUMEXPR_NUM_THREADS": null
+  },
+  "numpy_version": "1.26.0",
+  "faiss_version": "1.8.0",
+  "faiss_omp_max_threads_default": 32
+}
