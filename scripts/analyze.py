@@ -1,17 +1,19 @@
-"""Aggregate per-call results into a summary + figure + agreement report.
+"""Analyse exactly one run directory. Smoke-safe. Validates first.
 
-Writes:
-  results/summary.csv       per-run metrics for every (config, rep)
-  results/summary_agg.csv   median and [min,max] across reps per config
-  results/agreement.json    fraction of queries with identical top-5 sets
-                            vs reference (threads=1, batch=1, rep=0)
-  results/figure.png        two-panel figure
+Writes INSIDE the run directory:
+  summary.csv              per-run metrics
+  summary_agg.csv          median + [min, max] per config
+  agreement.json           per-run top-5 identity vs per-rep reference
+  recommendations.json     machine-readable best-per-use-case
+  figure.png               two-panel chart (if enough data)
+  analysis_notes.json      what comparisons were/weren't performed
 """
 from __future__ import annotations
 
+import argparse
 import csv
 import json
-import math
+import sys
 from pathlib import Path
 
 import matplotlib
@@ -20,59 +22,98 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 ROOT = Path(__file__).resolve().parent.parent
-RESULTS = ROOT / "results"
-PER_CALL = RESULTS / "per_call"
+sys.path.insert(0, str(ROOT / "scripts"))
+import validate as v  # noqa: E402
 
 
-def load_records() -> list[dict]:
-    out = []
-    for p in sorted(PER_CALL.glob("b*_t*_rep*.json")):
-        out.append(json.loads(p.read_text()))
-    return out
+# Decision rule for "no clear winner", documented in README:
+#   Call the recommendation CLEAR only if the best config's median is
+#   OUTSIDE the [min, max] observed range of every other config.
+#   This is a descriptive overlap check, NOT a formal significance test.
+def decide_clear_winner(items: list[dict], best: dict,
+                        lower_better: bool) -> bool:
+    for other in items:
+        if other is best:
+            continue
+        if lower_better:
+            if best["median"] >= other["min"]:
+                return False
+        else:
+            if best["median"] <= other["max"]:
+                return False
+    return True
 
 
-def p95(xs: list[float]) -> float:
-    if not xs:
-        return float("nan")
-    arr = np.asarray(xs, dtype=np.float64)
-    return float(np.percentile(arr, 95))
+def load_run(run_dir: Path) -> dict:
+    manifest = json.loads((run_dir / "manifest.json").read_text())
+    per_call = run_dir / "per_call"
+    records_by_key: dict = {}
+    duplicate_paths: dict = {}
+    for p in sorted(per_call.glob("*.json")):
+        rec = json.loads(p.read_text())
+        c = rec["config"]
+        key = (int(c["threads"]), int(c["batch_size"]), int(c["rep"]))
+        if key in records_by_key:
+            duplicate_paths.setdefault(key, [records_by_key[key]["_path"]]).append(str(p))
+            # Keep only the first; flag.
+        else:
+            rec["_path"] = str(p)
+            records_by_key[key] = rec
+
+    # Validate each record shape AND against manifest dataset.
+    expect = {"nb": None, "d": None, "k": int(manifest["k"]),
+              "queries_per_rep": int(manifest["queries_per_rep"])}
+    for key, rec in records_by_key.items():
+        ds = rec["dataset"]
+        if expect["nb"] is None:
+            expect["nb"] = ds["nb"]; expect["d"] = ds["d"]
+        v.validate_record(rec, expect_dataset=expect)
+        # Also enforce dataset hash agreement with manifest:
+        for h_key in ("xb_sha256", "xq_sha256"):
+            if ds.get(h_key) != manifest["dataset_sha256"].get(h_key):
+                raise ValueError(
+                    f"{rec['_path']}: dataset {h_key} differs from manifest"
+                )
+    return {
+        "manifest": manifest,
+        "records_by_key": records_by_key,
+        "duplicate_paths": duplicate_paths,
+    }
 
 
 def per_run_metric(rec: dict) -> dict:
     cfg = rec["config"]
     b = cfg["batch_size"]
     durs = rec["call_durations_s"]
-    total = rec["total_timed_seconds"]
-    nq = rec["queries_processed"]
-    row = {
+    sum_calls = float(rec["sum_call_durations_s"])
+    around = float(rec["elapsed_around_loop_s"])
+    nq = int(rec["queries_processed"])
+    return {
         "threads": cfg["threads"], "batch_size": b, "rep": cfg["rep"],
         "n_calls": len(durs), "queries": nq,
-        "total_timed_s": total,
-        "mean_call_ms": float(np.mean(durs) * 1000) if durs else float("nan"),
-        "median_call_ms": (
-            float(np.median(durs) * 1000) if durs else float("nan")
-        ),
-        "p95_call_ms": p95(durs) * 1000 if durs else float("nan"),
-        "throughput_qps": float(nq / total) if total > 0 else float("nan"),
+        "sum_call_durations_s": sum_calls,
+        "elapsed_around_loop_s": around,
+        "mean_call_ms": float(np.mean(durs) * 1000),
+        "median_call_ms": float(np.median(durs) * 1000),
+        "p95_call_ms": float(np.percentile(durs, 95) * 1000),
+        "throughput_qps_search_only":
+            float(nq / sum_calls) if sum_calls > 0 else float("nan"),
     }
-    return row
 
 
 def aggregate(rows: list[dict]) -> list[dict]:
-    key = lambda r: (r["threads"], r["batch_size"])
-    rows_sorted = sorted(rows, key=key)
     groups: dict[tuple, list[dict]] = {}
-    for r in rows_sorted:
-        groups.setdefault(key(r), []).append(r)
-    agg = []
+    for r in rows:
+        groups.setdefault((r["threads"], r["batch_size"]), []).append(r)
+    out = []
     for (t, b), rs in groups.items():
         if b == 1:
             vals = [r["p95_call_ms"] for r in rs]
             metric_name = "p95_call_ms"
         else:
-            vals = [r["throughput_qps"] for r in rs]
-            metric_name = "throughput_qps"
-        agg.append({
+            vals = [r["throughput_qps_search_only"] for r in rs]
+            metric_name = "throughput_qps_search_only"
+        out.append({
             "threads": t, "batch_size": b, "n_reps": len(rs),
             "metric": metric_name,
             "median": float(np.median(vals)),
@@ -80,62 +121,60 @@ def aggregate(rows: list[dict]) -> list[dict]:
             "max": float(np.max(vals)),
             "all_reps": vals,
         })
-    return sorted(agg, key=lambda r: (r["batch_size"], r["threads"]))
+    return sorted(out, key=lambda r: (r["batch_size"], r["threads"]))
 
 
-def agreement_report(records: list[dict]) -> dict:
-    """Compare each (config, rep) top-5 set against the SAME rep's
-    1-thread, batch-size-1 run (same queries, same order)."""
-    recs_by_key = {}
-    for rec in records:
-        c = rec["config"]
-        recs_by_key[(c["threads"], c["batch_size"], c["rep"])] = rec
-
-    report = {
-        "reference_rule": "per-rep: (threads=1, batch=1, same rep)",
-        "per_run": [],
-    }
-    overall: dict[tuple, list[float]] = {}
-    for (t, b, rep), rec in sorted(recs_by_key.items()):
-        ref = recs_by_key.get((1, 1, rep))
+def agreement_report(records_by_key: dict) -> dict:
+    """Compare each (t, b, rep) to (1, 1, rep). Fail hard on missing refs
+    when a non-reference record is present without its per-rep reference."""
+    reps = sorted({rep for (_, _, rep) in records_by_key.keys()})
+    per_run: list[dict] = []
+    per_config: dict = {}
+    missing_refs: list = []
+    for key, rec in sorted(records_by_key.items()):
+        t, b, rep = key
+        ref = records_by_key.get((1, 1, rep))
         if ref is None:
+            missing_refs.append([t, b, rep])
             continue
-        if rec["query_order"] != ref["query_order"]:
-            # Must be true by construction; log if not.
-            report["per_run"].append({
-                "threads": t, "batch_size": b, "rep": rep,
-                "error": "query order mismatch vs reference",
-            })
-            continue
-        ref_ids = [set(row) for row in ref["top5_ids"]]
-        cmp_ids = [set(row) for row in rec["top5_ids"]]
-        n = min(len(ref_ids), len(cmp_ids))
+        v.validate_agreement_pair(ref, rec)
+        ref_ids = [set(r) for r in ref["top5_ids"]]
+        cmp_ids = [set(r) for r in rec["top5_ids"]]
+        n = len(ref_ids)
         matches = sum(1 for i in range(n) if ref_ids[i] == cmp_ids[i])
-        frac = matches / n if n else float("nan")
-        report["per_run"].append({
+        frac = matches / n
+        per_run.append({
             "threads": t, "batch_size": b, "rep": rep,
             "n_queries_compared": n,
             "n_identical_top5_sets": matches,
             "fraction_identical": frac,
         })
-        overall.setdefault((t, b), []).append(frac)
-
-    report["per_config_summary"] = [
+        per_config.setdefault((t, b), []).append(frac)
+    summary = [
         {
-            "threads": t, "batch_size": b, "n_reps": len(v),
-            "min_fraction_identical": float(np.min(v)),
-            "median_fraction_identical": float(np.median(v)),
-            "max_fraction_identical": float(np.max(v)),
+            "threads": t, "batch_size": b, "n_reps": len(vals),
+            "min_fraction_identical": float(np.min(vals)),
+            "median_fraction_identical": float(np.median(vals)),
+            "max_fraction_identical": float(np.max(vals)),
         }
-        for (t, b), v in sorted(overall.items())
+        for (t, b), vals in sorted(per_config.items())
     ]
-    return report
+    return {
+        "reference_rule":
+            "per-rep: (threads=1, batch=1, same rep). "
+            "Missing reference for any non-reference record is an error.",
+        "per_run": per_run,
+        "per_config_summary": summary,
+        "missing_references": missing_refs,
+        "reps_covered": reps,
+    }
 
 
 def write_summary(rows: list[dict], path: Path) -> None:
     fields = ["threads", "batch_size", "rep", "n_calls", "queries",
-              "total_timed_s", "mean_call_ms", "median_call_ms",
-              "p95_call_ms", "throughput_qps"]
+              "sum_call_durations_s", "elapsed_around_loop_s",
+              "mean_call_ms", "median_call_ms", "p95_call_ms",
+              "throughput_qps_search_only"]
     with path.open("w", newline="") as f:
         w = csv.DictWriter(f, fieldnames=fields)
         w.writeheader()
@@ -154,97 +193,186 @@ def write_summary_agg(agg: list[dict], path: Path) -> None:
             w.writerow({k: r[k] for k in fields})
 
 
-def build_figure(agg: list[dict], path: Path) -> None:
-    b1 = [r for r in agg if r["batch_size"] == 1]
-    b32 = [r for r in agg if r["batch_size"] == 32]
-    b1.sort(key=lambda r: r["threads"])
-    b32.sort(key=lambda r: r["threads"])
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(11, 4.4))
-
-    t = [r["threads"] for r in b1]
-    med = [r["median"] for r in b1]
-    lo = [r["median"] - r["min"] for r in b1]
-    hi = [r["max"] - r["median"] for r in b1]
-    ax1.errorbar(t, med, yerr=[lo, hi], fmt="o-", capsize=4,
-                 color="tab:blue")
-    ax1.set_title("Interactive (batch=1): p95 latency")
-    ax1.set_xlabel("requested threads"); ax1.set_ylabel("p95 call latency (ms)")
-    ax1.set_xticks(t); ax1.grid(True, alpha=0.3)
-
-    t2 = [r["threads"] for r in b32]
-    med2 = [r["median"] for r in b32]
-    lo2 = [r["median"] - r["min"] for r in b32]
-    hi2 = [r["max"] - r["median"] for r in b32]
-    ax2.errorbar(t2, med2, yerr=[lo2, hi2], fmt="o-", capsize=4,
-                 color="tab:orange")
-    ax2.set_title("Batch-32: throughput (32 queries waiting)")
-    ax2.set_xlabel("requested threads"); ax2.set_ylabel("throughput (queries/sec)")
-    ax2.set_xticks(t2); ax2.grid(True, alpha=0.3)
-    fig.suptitle("FAISS CPU retrieval benchmark (synthetic 50k x 384 f32, k=5)")
-    fig.tight_layout()
-    fig.savefig(path, dpi=140)
-    plt.close(fig)
-
-
-def print_table(agg: list[dict]) -> None:
-    print("\n=== Aggregated results (median [min, max] across reps) ===")
-    print(f"{'batch':>5} {'threads':>8} {'metric':>18} {'median':>12} "
-          f"{'min':>12} {'max':>12}")
-    for r in agg:
-        print(f"{r['batch_size']:>5} {r['threads']:>8} {r['metric']:>18} "
-              f"{r['median']:>12.4f} {r['min']:>12.4f} {r['max']:>12.4f}")
-
-
-def recommendations(agg: list[dict]) -> dict:
+def build_figure(agg: list[dict], path: Path) -> bool:
     b1 = sorted([r for r in agg if r["batch_size"] == 1],
                 key=lambda r: r["threads"])
     b32 = sorted([r for r in agg if r["batch_size"] == 32],
                  key=lambda r: r["threads"])
-    base1 = next(r for r in b1 if r["threads"] == 1)
-    base32 = next(r for r in b32 if r["threads"] == 1)
-    best1 = min(b1, key=lambda r: r["median"])
-    best32 = max(b32, key=lambda r: r["median"])
-    return {
-        "interactive_best": {
-            "threads": best1["threads"],
-            "p95_ms_median": best1["median"],
-            "pct_vs_1thread": (
-                (best1["median"] - base1["median"]) / base1["median"] * 100.0
-            ),
-            "baseline_1thread_p95_ms_median": base1["median"],
-            "baseline_1thread_p95_ms_min_max":
-                [base1["min"], base1["max"]],
-            "best_min_max": [best1["min"], best1["max"]],
-        },
-        "throughput_best": {
-            "threads": best32["threads"],
-            "qps_median": best32["median"],
-            "pct_vs_1thread": (
-                (best32["median"] - base32["median"]) / base32["median"] * 100.0
-            ),
-            "baseline_1thread_qps_median": base32["median"],
-            "baseline_1thread_qps_min_max":
-                [base32["min"], base32["max"]],
-            "best_min_max": [best32["min"], best32["max"]],
-        },
+    if not b1 and not b32:
+        return False
+    fig, axes = plt.subplots(1, 2, figsize=(11, 4.4))
+
+    def panel(ax, data, title, ylab, color):
+        if not data:
+            ax.text(0.5, 0.5, "no data for this panel\n(smoke run?)",
+                    ha="center", va="center", transform=ax.transAxes)
+            ax.set_title(title); ax.set_xlabel("requested threads")
+            ax.set_ylabel(ylab); return
+        t = [r["threads"] for r in data]
+        m = [r["median"] for r in data]
+        lo = [r["median"] - r["min"] for r in data]
+        hi = [r["max"] - r["median"] for r in data]
+        ax.errorbar(t, m, yerr=[lo, hi], fmt="o-", capsize=4, color=color)
+        ax.set_title(title); ax.set_xlabel("requested threads")
+        ax.set_ylabel(ylab); ax.set_xticks(t); ax.grid(True, alpha=0.3)
+
+    panel(axes[0], b1, "Interactive (batch=1): p95 latency",
+          "p95 call latency (ms)", "tab:blue")
+    panel(axes[1], b32, "Batch-32: throughput (search-only)",
+          "throughput (queries/sec)", "tab:orange")
+    fig.suptitle(
+        "FAISS CPU retrieval benchmark (synthetic 50k x 384 f32, k=5)"
+    )
+    fig.tight_layout()
+    fig.savefig(path, dpi=140)
+    plt.close(fig)
+    return True
+
+
+def recommendations(agg: list[dict]) -> dict:
+    """Produce a recommendation per use case or 'insufficient data'.
+
+    Decision rule is the one implemented in decide_clear_winner().
+    """
+    out: dict = {
+        "decision_rule":
+            "Recommendation is CLEAR only if the best config's median is "
+            "outside the [min, max] observed range of every other config "
+            "measured in this run. This is a descriptive overlap check, "
+            "not a formal significance test.",
     }
+    b1 = sorted([r for r in agg if r["batch_size"] == 1],
+                key=lambda r: r["threads"])
+    b32 = sorted([r for r in agg if r["batch_size"] == 32],
+                 key=lambda r: r["threads"])
+
+    def summarize(data, lower_better, metric_label):
+        if len(data) == 0:
+            return {"status": "insufficient_data", "reason":
+                    "no records for this batch size in this run"}
+        best = (min(data, key=lambda r: r["median"]) if lower_better
+                else max(data, key=lambda r: r["median"]))
+        baseline = next((r for r in data if r["threads"] == 1), None)
+        if baseline is None:
+            base_info = {"status": "no_single_thread_baseline"}
+        else:
+            if lower_better:
+                pct = ((best["median"] - baseline["median"])
+                       / baseline["median"] * 100.0)
+            else:
+                pct = ((best["median"] - baseline["median"])
+                       / baseline["median"] * 100.0)
+            base_info = {
+                "baseline_1thread_median": baseline["median"],
+                "baseline_1thread_min_max": [baseline["min"], baseline["max"]],
+                "pct_vs_1thread_median": pct,
+            }
+        if len(data) == 1:
+            return {
+                "status": "single_configuration_only",
+                "only_measured": {"threads": best["threads"],
+                                  "metric": metric_label,
+                                  "median": best["median"],
+                                  "min_max": [best["min"], best["max"]]},
+                **base_info,
+            }
+        clear = decide_clear_winner(data, best, lower_better)
+        return {
+            "status": "clear_winner" if clear else "no_clear_winner",
+            "lower_better": lower_better,
+            "best_observed": {
+                "threads": best["threads"],
+                "median": best["median"],
+                "min_max": [best["min"], best["max"]],
+            },
+            "default_if_no_winner": {"threads": 1},
+            "all_configs": [
+                {"threads": r["threads"], "median": r["median"],
+                 "min_max": [r["min"], r["max"]], "n_reps": r["n_reps"]}
+                for r in data
+            ],
+            **base_info,
+        }
+
+    out["interactive_batch1_p95_ms"] = summarize(b1, True, "p95_call_ms")
+    out["throughput_batch32_qps"] = summarize(
+        b32, False, "throughput_qps_search_only"
+    )
+    return out
 
 
 def main() -> None:
-    records = load_records()
-    print(f"loaded {len(records)} per-call records")
-    rows = [per_run_metric(r) for r in records]
+    p = argparse.ArgumentParser()
+    p.add_argument("--run-dir", type=str, required=True,
+                   help="run directory produced by run_bench.py")
+    args = p.parse_args()
+    run_dir = Path(args.run_dir)
+    if not (run_dir / "manifest.json").exists():
+        raise SystemExit(
+            f"{run_dir}/manifest.json missing. --run-dir must point to a run "
+            f"directory produced by scripts/run_bench.py."
+        )
+
+    data = load_run(run_dir)
+    manifest = data["manifest"]
+    records = data["records_by_key"]
+    # Manifest vs records check: smoke must have exactly its expected set;
+    # full must have no missing/duplicates/extra.
+    present = {k: [v["_path"]] for k, v in records.items()}
+    for k, paths in data["duplicate_paths"].items():
+        present[k] = paths
+    report = v.validate_manifest_vs_records(manifest, present)
+
+    if manifest["mode"] == "full":
+        if report["missing"] or report["duplicates"] or report["extra"]:
+            raise SystemExit(
+                "Full run is incomplete or inconsistent; refusing to publish.\n"
+                f" missing   : {report['missing']}\n"
+                f" duplicates: {report['duplicates']}\n"
+                f" extra     : {report['extra']}"
+            )
+
+    rows = [per_run_metric(r) for r in records.values()]
     agg = aggregate(rows)
-    write_summary(rows, RESULTS / "summary.csv")
-    write_summary_agg(agg, RESULTS / "summary_agg.csv")
-    build_figure(agg, RESULTS / "figure.png")
+    write_summary(rows, run_dir / "summary.csv")
+    write_summary_agg(agg, run_dir / "summary_agg.csv")
+    had_figure = build_figure(agg, run_dir / "figure.png")
     rep = agreement_report(records)
-    (RESULTS / "agreement.json").write_text(json.dumps(rep, indent=2))
+    if rep["missing_references"]:
+        raise SystemExit(
+            "Agreement check cannot complete; missing per-rep reference "
+            f"(1-thread, batch=1) for: {rep['missing_references']}"
+        )
+    (run_dir / "agreement.json").write_text(json.dumps(rep, indent=2))
     recs = recommendations(agg)
-    (RESULTS / "recommendations.json").write_text(json.dumps(recs, indent=2))
-    print_table(agg)
+    (run_dir / "recommendations.json").write_text(json.dumps(recs, indent=2))
+
+    notes = {
+        "mode": manifest["mode"],
+        "configs_present": sorted({(k[0], k[1]) for k in records.keys()}),
+        "reps_covered": sorted({k[2] for k in records.keys()}),
+        "interactive_analyzed":
+            any(r["batch_size"] == 1 for r in agg),
+        "throughput_analyzed":
+            any(r["batch_size"] == 32 for r in agg),
+        "figure_rendered": had_figure,
+        "comparisons_not_performed": (
+            [] if manifest["mode"] == "full"
+            else ["cross-thread p95 (smoke)", "batch-32 throughput (smoke)"]
+        ),
+    }
+    (run_dir / "analysis_notes.json").write_text(json.dumps(notes, indent=2))
+
+    print(f"\n=== Aggregated results from {run_dir} ===")
+    print(f"{'batch':>5} {'threads':>8} {'metric':>30} "
+          f"{'median':>12} {'min':>12} {'max':>12}")
+    for r in agg:
+        print(f"{r['batch_size']:>5} {r['threads']:>8} {r['metric']:>30} "
+              f"{r['median']:>12.4f} {r['min']:>12.4f} {r['max']:>12.4f}")
     print("\nRecommendation:")
     print(json.dumps(recs, indent=2))
+    print("\nNotes:")
+    print(json.dumps(notes, indent=2))
 
 
 if __name__ == "__main__":

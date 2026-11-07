@@ -1,19 +1,18 @@
-"""Collect hardware and software metadata; write results/machine.json.
+"""Collect hardware and software metadata for one run.
 
-No FAISS import here on purpose — the orchestrator writes a separate
-runtime record once thread limits have been applied.
+Writes to the path given by --out. Fields that cannot be measured on the
+host are included with explicit null and a reason, rather than omitted.
 """
 from __future__ import annotations
 
+import argparse
+import datetime as dt
 import json
 import os
 import platform
 import subprocess
 import sys
 from pathlib import Path
-
-ROOT = Path(__file__).resolve().parent.parent
-OUT = ROOT / "results" / "machine.json"
 
 
 def _ps(cmd: str) -> str:
@@ -38,8 +37,18 @@ def detect_wsl() -> bool:
         return False
 
 
+def _unknown(reason: str) -> dict:
+    return {"value": None, "unknown_reason": reason}
+
+
 def main() -> None:
+    p = argparse.ArgumentParser()
+    p.add_argument("--out", type=str, required=True)
+    args = p.parse_args()
+
     info: dict = {
+        "captured_at_utc": dt.datetime.now(dt.timezone.utc)
+            .strftime("%Y-%m-%dT%H:%M:%SZ"),
         "python_version": sys.version.split()[0],
         "python_executable": sys.executable,
         "platform": platform.platform(),
@@ -61,9 +70,9 @@ def main() -> None:
             "| ConvertTo-Json -Compress"
         )
         bat_json = _ps(
-            "$b = Get-CimInstance Win32_Battery -ErrorAction SilentlyContinue; "
-            "if ($b) { $b | Select-Object -First 1 BatteryStatus,"
-            "EstimatedChargeRemaining | ConvertTo-Json -Compress } else { '{}' }"
+            "$b = Get-CimInstance Win32_Battery -ErrorAction SilentlyContinue;"
+            " if ($b) { $b | Select-Object -First 1 BatteryStatus,"
+            "EstimatedChargeRemaining | ConvertTo-Json -Compress } else {'{}'}"
         )
         plan = _ps("(powercfg /getactivescheme) 2>&1")
         try:
@@ -79,6 +88,9 @@ def main() -> None:
         except Exception:
             info["battery_wmi_raw"] = bat_json
         info["active_power_plan"] = plan
+    else:
+        info["note"] = "non-Windows: no WMI fields collected"
+
     info["env_thread_vars_at_inspect"] = {
         k: os.environ.get(k)
         for k in (
@@ -86,6 +98,30 @@ def main() -> None:
             "VECLIB_MAXIMUM_THREADS", "NUMEXPR_NUM_THREADS",
         )
     }
+
+    # Explicit unknowns: we cannot measure these without extra tooling on
+    # native Windows in this environment. Documented rather than omitted.
+    info["measured_during_run"] = {
+        "actual_cpu_frequency_hz": _unknown(
+            "WMI MaxClockSpeed is nominal base; no per-core boost sampling."
+        ),
+        "p_core_vs_e_core_placement": _unknown(
+            "no scheduling data; OS controls placement."
+        ),
+        "cache_utilisation": _unknown(
+            "no PMU/ETW integration in this benchmark."
+        ),
+        "memory_bandwidth": _unknown(
+            "not measured; would require PCM/VTune or similar."
+        ),
+        "energy_or_power_watts": _unknown(
+            "RAPL not accessible without admin ETW providers on Windows."
+        ),
+        "achieved_cpu_utilisation_percent": _unknown(
+            "we record configured thread limits, not observed utilisation."
+        ),
+    }
+
     try:
         import numpy as np
         info["numpy_version"] = np.__version__
@@ -98,9 +134,10 @@ def main() -> None:
     except Exception as e:
         info["faiss_version"] = f"__err__:{e}"
 
-    OUT.parent.mkdir(parents=True, exist_ok=True)
-    OUT.write_text(json.dumps(info, indent=2))
-    print(f"Wrote {OUT}")
+    out = Path(args.out)
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(json.dumps(info, indent=2))
+    print(f"Wrote {out}")
 
 
 if __name__ == "__main__":

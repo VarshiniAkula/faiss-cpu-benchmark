@@ -1,0 +1,103 @@
+{
+  "decision_rule": "Recommendation is CLEAR only if the best config's median is outside the [min, max] observed range of every other config measured in this run. This is a descriptive overlap check, not a formal significance test.",
+  "interactive_batch1_p95_ms": {
+    "status": "no_clear_winner",
+    "lower_better": true,
+    "best_observed": {
+      "threads": 1,
+      "median": 3.86436500120908,
+      "min_max": [
+        3.8142500168760303,
+        4.468914993049111
+      ]
+    },
+    "default_if_no_winner": {
+      "threads": 1
+    },
+    "all_configs": [
+      {
+        "threads": 1,
+        "median": 3.86436500120908,
+        "min_max": [
+          3.8142500168760303,
+          4.468914993049111
+        ],
+        "n_reps": 5
+      },
+      {
+        "threads": 2,
+        "median": 3.898984992702026,
+        "min_max": [
+          3.696104987466242,
+          4.405030004272703
+        ],
+        "n_reps": 5
+      },
+      {
+        "threads": 4,
+        "median": 4.132204999041277,
+        "min_max": [
+          3.560365007433574,
+          4.825099982554093
+        ],
+        "n_reps": 5
+      }
+    ],
+    "baseline_1thread_median": 3.86436500120908,
+    "baseline_1thread_min_max": [
+      3.8142500168760303,
+      4.468914993049111
+    ],
+    "pct_vs_1thread_median": 0.0
+  },
+  "throughput_batch32_qps": {
+    "status": "clear_winner",
+    "lower_better": false,
+    "best_observed": {
+      "threads": 4,
+      "median": 2834.385526110747,
+      "min_max": [
+        2803.008197184909,
+        3186.6816634396705
+      ]
+    },
+    "default_if_no_winner": {
+      "threads": 1
+    },
+    "all_configs": [
+      {
+        "threads": 1,
+        "median": 1581.8614860803432,
+        "min_max": [
+          1571.8144199358708,
+          1599.2133868541257
+        ],
+        "n_reps": 5
+      },
+      {
+        "threads": 2,
+        "median": 2326.8792735188113,
+        "min_max": [
+          2237.813097139106,
+          2507.652748969767
+        ],
+        "n_reps": 5
+      },
+      {
+        "threads": 4,
+        "median": 2834.385526110747,
+        "min_max": [
+          2803.008197184909,
+          3186.6816634396705
+        ],
+        "n_reps": 5
+      }
+    ],
+    "baseline_1thread_median": 1581.8614860803432,
+    "baseline_1thread_min_max": [
+      1571.8144199358708,
+      1599.2133868541257
+    ],
+    "pct_vs_1thread_median": 79.18038659212844
+  }
+}

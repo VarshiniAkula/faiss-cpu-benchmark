@@ -1,241 +1,304 @@
-# FAISS CPU Retrieval Benchmark (synthetic mode)
+# FAISS CPU Retrieval Benchmark (synthetic workload)
 
-A small, reproducible FAISS CPU retrieval benchmark run on a Lenovo Legion
-laptop. This is synthetic-mode: no HyArg artifacts were supplied, so the
-dataset is seeded synthetic.
+A small, reproducible FAISS CPU retrieval benchmark run on a Lenovo
+Legion laptop. **The workload is synthetic**: no HyArg artifacts were
+supplied, so the dataset is seeded Gaussian vectors.
 
 ## Benchmark question
 
 On this CPU, with an `IndexFlatL2` of 50,000 x 384-D float32 vectors and
 `k=5`:
 
-1. **Interactive use case (batch=1):** which of 1, 2, or 4 requested
-   threads gives the lowest p95 per-call search latency?
-2. **Throughput use case (batch=32):** which gives the highest throughput
-   when 32 queries are already waiting?
+1. **Interactive use case (batch=1)** — which of 1, 2, or 4 requested
+   OpenMP threads gives the lowest p95 per-call search latency?
+2. **Throughput use case (batch=32)** — which gives the highest
+   throughput when 32 queries are already waiting?
 
-Two different questions, same index, same queries, same k.
+Same index, same queries, same k. Two different metrics for two
+different operating points.
 
-## Hardware and software
+## Fresh results
 
-Collected by `scripts/inspect_machine.py` into `results/machine.json`.
+![two-panel figure: p95 latency and batch-32 throughput vs threads](runs/20261107T032705Z-full-6604f72/figure.png)
 
-- CPU: **Intel(R) Core(TM) i9-14900HX**, 24 physical cores / 32 logical
-  processors (hybrid P-core + E-core). Max base clock reported by WMI:
-  2200 MHz. **Boost clock not directly measured here.**
-- OS: Microsoft Windows 11 Home, build 10.0.26300. Native Windows, not WSL.
-- Memory: ~15.73 GiB visible.
-- Python: 3.11.9 (Windows Store distribution).
-- NumPy: 1.26.0.
-- FAISS: `faiss-cpu` 1.8.0 (CPU, no GPU use). Default `omp_get_max_threads`
-  on this machine without env overrides: 32.
-- Power: on AC power, active plan "Balanced". Battery state was not
-  constant across the run (charging from ~32% to ~37% while benchmarking).
-  **Boost/throttling behavior not independently measured; see limitations.**
+From the fresh full run in `runs/20261107T032705Z-full-6604f72/`
+(30 per-call records; 6 configs x 5 reps; manifest-checked; agreement 1.000
+across every rep).
 
-## Dataset (synthetic)
+### Interactive (batch=1): p95 per-call latency (ms)
 
-Seeded standard-normal float32 arrays. Built once by `scripts/make_data.py`
-and saved to `data/`:
+| threads | median p95 | min    | max    | % vs 1-thread median |
+|---------|------------|--------|--------|----------------------|
+| 1       | 3.864      | 3.814  | 4.469  | —                    |
+| 2       | 3.899      | 3.696  | 4.405  | +0.9%                |
+| 4       | 4.132      | 3.560  | 4.825  | +6.9%                |
 
-| name | shape       | dtype   | seed       |
-|------|-------------|---------|------------|
-| xb   | 50000 x 384 | float32 | 20261106   |
-| xq   | 512   x 384 | float32 | 20261107   |
-
-Index: `faiss.IndexFlatL2(384)` with `index.add(xb)`. Exact search, no
-approximation. k=5.
-
-## Timing boundaries
-
-What is included in the timed region, per worker process:
-
-- Only the `index.search(xq_slice, k)` calls.
-- For batch=1: 512 individual calls, one per query.
-- For batch=32: 16 batch calls (512 queries total).
-
-What is **excluded** from timing:
-
-- Synthetic data generation and `.npy` load.
-- `IndexFlatL2` construction and `index.add(xb)`.
-- 10 warm-up search calls per worker (not recorded).
-- The separate, untimed pass that collects top-5 IDs for the agreement
-  check.
-- Python startup, FAISS import, file writes.
-
-Timer: `time.perf_counter()` (monotonic, high resolution).
-
-## Experiment protocol
-
-- 6 configurations: `(threads, batch_size) in {(1,1),(2,1),(4,1),(1,32),(2,32),(4,32)}`.
-- 5 measured repetitions per configuration.
-- Every (config, rep) runs in a fresh Python subprocess spawned by
-  `scripts/run_bench.py`. Before the worker imports NumPy/FAISS, the
-  orchestrator sets `OMP_NUM_THREADS`, `MKL_NUM_THREADS`,
-  `OPENBLAS_NUM_THREADS`, `VECLIB_MAXIMUM_THREADS`, `NUMEXPR_NUM_THREADS`,
-  and `BLIS_NUM_THREADS` to the requested thread count. After import, the
-  worker also calls `faiss.omp_set_num_threads(threads)` explicitly and
-  records `faiss.omp_get_max_threads()` after the call.
-- Per repetition, the configuration order is a deterministic shuffle keyed
-  by `(seed, rep)`. The actual order used is logged to
-  `results/run_order.json`.
-- Within a rep, all six configs process the same 512 queries in the same
-  shuffled order (the per-rep order is also deterministic given `(seed,
-  rep)`), so results align 1:1 across configs for the same rep.
-- Metric per rep:
-  - `batch=1`: `p95` across the 512 per-call durations.
-  - `batch=32`: `queries_processed / total_timed_seconds`.
-- Aggregation across the 5 reps: **median** and `[min, max]` range.
-
-"Configured thread limits" (what we set) and "observed CPU utilization"
-(what the OS scheduler actually did) are not the same thing. We only
-record and control the former.
-
-## Results
-
-Aggregated across 5 reps per configuration (full per-rep data in
-`results/summary.csv`):
-
-### Interactive (batch=1, metric = p95 per-call latency, ms)
-
-| threads | median p95 (ms) | min    | max    | % vs 1-thread median |
-|---------|-----------------|--------|--------|----------------------|
-| 1       | 3.921           | 3.712  | 4.045  | —                    |
-| 2       | 3.962           | 3.757  | 4.600  | +1.1%                |
-| 4       | 3.883           | 3.803  | 4.115  | -1.0%                |
-
-### Throughput (batch=32, metric = queries/sec)
+### Throughput (batch=32): queries/sec (search-only; see "Timing" below)
 
 | threads | median qps | min    | max    | % vs 1-thread median |
 |---------|------------|--------|--------|----------------------|
-| 1       | 1508.6     | 1476.3 | 1540.1 | —                    |
-| 2       | 2228.0     | 2148.0 | 2422.8 | +47.7%               |
-| 4       | 2755.9     | 2643.0 | 3100.7 | +82.7%               |
+| 1       | 1581.9     | 1571.8 | 1599.2 | —                    |
+| 2       | 2326.9     | 2237.8 | 2507.7 | +47.1%               |
+| 4       | 2834.4     | 2803.0 | 3186.7 | **+79.2%**           |
 
-Figure: `results/figure.png` (two panels, latency + throughput vs
-threads, error bars show `[min, max]` across the 5 reps).
+### Decision rule and recommendation (from `recommendations.json`)
 
-### Agreement with reference
+**Rule.** A thread count is a "clear winner" for a use case only if its
+median is outside the `[min, max]` range of every other measured
+thread count in this run. This is a descriptive overlap check, **not a
+formal significance test**.
 
-Agreement rule: for each `(config, rep)`, compare the top-5 ID sets to
-the `(threads=1, batch=1, same rep)` run on the same queries, outside
-the timed region.
+- **Interactive:** `no_clear_winner`. The best median is at t=1
+  (3.864 ms), but its own range `[3.814, 4.469]` overlaps the ranges
+  for t=2 and t=4. Rank order was unstable across reps. Default
+  recommendation: **1 thread** (matches the measured median; nothing
+  else is distinguishable at this sample size).
+- **Throughput:** `clear_winner` at **4 threads**. Its min (2803 qps)
+  exceeds the maxes of both t=1 (1599) and t=2 (2508). +79.2% over the
+  single-thread batch-32 baseline.
 
-| threads | batch | n_reps | min frac | median frac | max frac |
-|---------|-------|--------|----------|-------------|----------|
-| 1       | 1     | 5      | 1.000    | 1.000       | 1.000    |
-| 1       | 32    | 5      | 1.000    | 1.000       | 1.000    |
-| 2       | 1     | 5      | 1.000    | 1.000       | 1.000    |
-| 2       | 32    | 5      | 1.000    | 1.000       | 1.000    |
-| 4       | 1     | 5      | 1.000    | 1.000       | 1.000    |
-| 4       | 32    | 5      | 1.000    | 1.000       | 1.000    |
+These recommendations are **limited to the measured configurations and
+workload**: threads in {1, 2, 4}, batch sizes in {1, 32}, this
+IndexFlatL2 over 50k x 384 f32 vectors with k=5, on the specific CPU
+and power state recorded in `machine.json`.
 
-All configurations return identical top-5 sets. This is expected for
-exact search with `IndexFlatL2`; threading does not change the computed
-L2 distances, and there are no tie-break differences at k=5 on this
-dataset. This is **agreement with a per-rep reference**, not Recall@5
-against a labeled relevance dataset.
+### Agreement with the reference
 
-## Practical recommendations
+For every `(threads, batch, rep)`, the top-5 ID set was compared to the
+`(threads=1, batch=1, same rep)` run on the same queries, outside the
+timed region. Across all 30 records: **1.000 min, 1.000 median,
+1.000 max fraction identical**.
 
-- **Interactive (one query at a time).** On this machine, with this
-  index and k, the p95 differences between 1, 2, and 4 threads are
-  smaller than the run-to-run range. The experiment **did not establish
-  a clear winner for the interactive use case**; 1 thread is a reasonable
-  default. Thread-count tuning here is unlikely to move p95 by more than
-  a few percent.
-- **Throughput (32 queries waiting).** Use the **4-thread** setting:
-  median ~2756 qps, ~+82.7% vs 1 thread. 2 threads already gives most
-  of the win (+47.7%); the jump from 2 to 4 is a further ~+23.7%.
+Floating-point summation is non-associative, so parallel reductions
+across different thread counts **can** produce slightly different
+distances and could, in principle, change which ID wins near a tie.
+This run exhibited no such differences; we report the observed agreement
+rather than a correctness guarantee.
 
-These recommendations are specific to this CPU, this index type and
-size, this dataset, this k, and the "Balanced" power plan on AC power
-during the run.
+### Fresh vs historical comparison
 
-## Limitations
+Historical measurements are preserved in `results/` (from commit
+`6604f72`). To make the comparison apples-to-apples, the historical
+throughput numbers below have been **recalculated from the historical
+raw per-call data using the new `sum(call_durations_s)` denominator**;
+the original run's reported throughput used a near-equivalent
+elapsed-around-loop denominator and differs by less than 0.1%.
 
-- Synthetic standard-normal data only. No HyArg artifacts were provided
-  to the run. A real HyArg index may have different access patterns,
-  cardinality, and dimensionality.
-- `IndexFlatL2` is an exact brute-force index. Conclusions do not
-  transfer directly to `IndexIVFPQ`, `HNSW`, or other approximate
-  indexes.
-- Only thread counts 1, 2, 4 were tested. 8 and 16 threads may change
-  the picture, especially on a 24-core CPU.
-- Only two batch sizes (1 and 32) were tested.
-- Battery state was not constant during the run (on AC, charging). I
-  did not measure or constrain P-core vs E-core placement or CPU
-  frequency; the OS scheduler controlled both. Explanations about cache,
-  memory bandwidth, or P/E scheduling would be **hypotheses, not
-  measured results**.
-- Hardware performance counter data was not collected (not available
-  without additional setup on native Windows for this user).
-- WMI's `MaxClockSpeed` field reports a nominal base, not the boost
-  clock in effect during the run.
+| metric             | historical (recalc) | fresh         | delta   |
+|--------------------|---------------------|---------------|---------|
+| p95 t=1 (ms)       | 3.921               | 3.864         | -1.5%   |
+| p95 t=2 (ms)       | 3.962               | 3.899         | -1.6%   |
+| p95 t=4 (ms)       | 3.883               | 4.132         | +6.4%   |
+| qps t=1            | 1509.0              | 1581.9        | +4.8%   |
+| qps t=2            | 2229.1              | 2326.9        | +4.4%   |
+| qps t=4            | 2757.7              | 2834.4        | +2.8%   |
+
+Observations about the deltas, not tuning decisions:
+
+- Throughput is uniformly higher on the fresh run (~3–5%). Plausible but
+  unverified causes: different thermal/boost state, background process
+  load, battery charging profile. We did not measure CPU frequency or
+  power draw to confirm.
+- Interactive p95 at t=4 moved up enough that the fresh "best median"
+  flipped from t=4 (historical) to t=1 (fresh). Both runs agree on the
+  bigger finding: **batch=1 differences across thread counts are within
+  run-to-run variability** — the rank order is not stable, which is
+  exactly why the rule returns `no_clear_winner`.
+
+No parameters were changed between the two runs to force this picture.
+
+## Experiment protocol
+
+- **Dataset.** `scripts/make_data.py` writes `data/xb.npy`
+  (50,000 x 384 f32, seed 20261106) and `data/xq.npy` (512 x 384 f32,
+  seed 20261107). Dataset identity is enforced per-run: the manifest
+  records SHA-256 of both files and every worker re-hashes the files
+  and refuses to run if a hash differs.
+- **Index.** `faiss.IndexFlatL2(384)` with `index.add(xb)` built fresh
+  in every worker (outside the timed region).
+- **Configurations.** `(threads, batch_size) in {(1,1), (2,1), (4,1),
+  (1,32), (2,32), (4,32)}`, 5 reps each. 512 queries per (config, rep).
+  Query order per rep is a deterministic permutation keyed by
+  `(seed, rep)`; the same order is used by all six configs within a
+  rep.
+- **Process isolation.** Every (config, rep) runs in a fresh Python
+  subprocess spawned by `scripts/run_bench.py`. Before the worker
+  imports NumPy/FAISS, the orchestrator sets
+  `OMP_NUM_THREADS`, `MKL_NUM_THREADS`, `OPENBLAS_NUM_THREADS`,
+  `VECLIB_MAXIMUM_THREADS`, `NUMEXPR_NUM_THREADS`, and
+  `BLIS_NUM_THREADS` to the requested count. After import, the worker
+  calls `faiss.omp_set_num_threads(threads)` and records
+  `threadpool_info()` from `threadpoolctl` for the loaded BLAS/OMP
+  runtimes.
+- **Run isolation.** Every experiment writes to its own directory under
+  `runs/<timestamp>-<mode>-<git short>/`. A smoke run cannot overwrite
+  a full run (and vice versa).
+- **Timing.** Only `index.search()` calls are timed, with
+  `time.perf_counter()`. Two timing fields are recorded per worker:
+    - `sum_call_durations_s` — sum of per-call durations. **This is the
+      denominator for throughput.** Python overhead between calls is
+      excluded.
+    - `elapsed_around_loop_s` — wall time from the first call's `t0` to
+      the last call's `t1`. Kept as a **diagnostic** (always >=
+      `sum_call_durations_s`). Not used in headline metrics.
+- **Agreement.** After the timed region, each worker makes a separate,
+  untimed pass over the same queries to collect top-5 IDs. Analysis
+  compares every record to the same-rep `(threads=1, batch=1)` run and
+  fails if any required reference is missing.
+- **Validation before publishing.** `analyze.py` reads exactly one run
+  directory, validates the manifest against actually-present records
+  (missing, duplicates, extras), re-validates every record's shape and
+  timing values, and refuses to produce a summary for an incomplete
+  full run.
+
+## Hardware and software (fresh run)
+
+Recorded in `runs/<run_id>/machine.json` and per-worker records:
+
+- **CPU:** Intel(R) Core(TM) i9-14900HX, 24 physical cores / 32 logical
+  processors (hybrid P-core + E-core). WMI base clock: 2200 MHz.
+- **OS:** Microsoft Windows 11 Home, build 10.0.26300. Native Windows,
+  not WSL.
+- **Memory:** ~15.73 GiB visible.
+- **Power:** on AC, plan "Balanced", battery charging across the run.
+- **Python:** 3.11.9.
+- **Packages:** faiss-cpu 1.8.0, numpy 1.26.0, matplotlib 3.10.3,
+  threadpoolctl 3.6.0.
+- **Runtime pools (threadpoolctl, with threads=4 example):**
+  OpenBLAS 0.3.23 (num_threads=4), two libomp libraries loaded by FAISS
+  (both num_threads=4). The configured limits propagated to the actual
+  loaded runtimes.
+- **Not measured, explicitly:** actual achieved CPU frequency during the
+  run, P-core vs E-core placement of worker threads, cache utilisation,
+  memory bandwidth, energy/power in watts, and achieved CPU utilisation
+  percentage. These are captured as `null` with a reason in
+  `machine.json` under `measured_during_run`.
 
 ## Reproducing
 
-All commands below are PowerShell on Windows (what was used to produce
-these results). They assume `faiss-cpu==1.8.0`, `numpy==1.26.0`, and
-`matplotlib==3.10.3` are installed into the Python interpreter named
-`python`.
+All commands below are PowerShell on Windows (the environment that
+produced these results). The regression tests also pass under `bash`
+using the same Python interpreter.
 
-Install dependencies:
+### 1. Isolated environment and install
 
 ```powershell
-python -m pip install --trusted-host pypi.org --trusted-host files.pythonhosted.org -r requirements.txt
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install --upgrade pip
+pip install -r requirements.txt
 ```
 
-Smoke test (one config, one rep):
+If pip fails with an SSL certificate error on Windows Store Python,
+re-run with:
 
 ```powershell
-python scripts\inspect_machine.py
+pip install --trusted-host pypi.org --trusted-host files.pythonhosted.org -r requirements.txt
+```
+
+### 2. Build the seeded dataset (once)
+
+```powershell
 python scripts\make_data.py
-python scripts\run_bench.py --smoke
-python scripts\analyze.py
 ```
 
-Full run and figure (what produced the numbers above):
+### 3. Smoke run (one config, one rep)
 
 ```powershell
-python scripts\inspect_machine.py
-python scripts\make_data.py
-python scripts\run_bench.py --reps 5
-python scripts\analyze.py
+python scripts\run_bench.py --mode smoke
+python scripts\analyze.py --run-dir (Get-ChildItem runs\*-smoke-* -Directory | Sort-Object Name -Descending | Select-Object -First 1).FullName
 ```
 
-Repository layout:
+### 4. Full run (6 configs x 5 reps) and analysis
+
+```powershell
+python scripts\run_bench.py --mode full --reps 5
+python scripts\analyze.py --run-dir (Get-ChildItem runs\*-full-* -Directory | Sort-Object Name -Descending | Select-Object -First 1).FullName
+```
+
+To analyse a specific prior run:
+
+```powershell
+python scripts\analyze.py --run-dir runs\20261107T032705Z-full-6604f72
+```
+
+### 5. Regression tests
+
+```powershell
+python tests\test_regression.py
+```
+
+All 16 checks must pass. The tests cover: smoke end-to-end, smoke/full
+separation, incomplete-full detection, mismatched query/ID arrays,
+throughput formula, and decision-rule consistency.
+
+## Repository layout
 
 ```
 faiss-cpu-benchmark/
-  requirements.txt
   README.md
+  requirements.txt
+  .gitignore
   scripts/
-    inspect_machine.py   hardware/software metadata
+    inspect_machine.py   per-run machine metadata (explicit unknowns)
     make_data.py         seeded synthetic dataset
-    worker.py            single-config benchmark worker
-    run_bench.py         orchestrator (spawns fresh workers)
-    analyze.py           aggregate + figure + agreement + table
-  data/                  xb.npy, xq.npy, dataset.json
-  results/
-    machine.json
-    run_order.json
-    per_call/            one JSON per (config, rep) with raw timings
-    summary.csv          per-rep metrics
-    summary_agg.csv      median [min, max] per config
-    agreement.json       per-rep top-5 identity vs reference
-    recommendations.json machine-readable best-per-use-case
-    figure.png           two-panel chart
+    worker.py            single-config worker; writes one JSON per run
+    run_bench.py         orchestrator (modes, manifest, status)
+    analyze.py           reads ONE run dir; validates then summarises
+    validate.py          shared validators (also imported by tests)
+  tests/
+    test_regression.py   runnable: `python tests/test_regression.py`
+  data/
+    dataset.json         dataset metadata (.npy files are gitignored and
+                         regenerated deterministically by make_data.py)
+  runs/
+    <timestamp>-<mode>-<git short>/
+      manifest.json      what was planned; git, versions, hashes
+      machine.json       hardware/software/power at inspection
+      run_order.json     actual run order + wall times
+      per_call/*.json    one raw record per (config, rep)
+      summary.csv        per-run metrics
+      summary_agg.csv    median [min, max] per config
+      agreement.json     per-rep top-5 identity
+      recommendations.json
+      figure.png
+      status.json        completion state and any gaps
+      analysis_notes.json which comparisons were performed
+  results/               HISTORICAL run from commit 6604f72 (preserved)
 ```
 
-## What was and was not verified
+## Limitations
 
-- Verified by this run: 30 per-call JSON files written (6 configs x 5
-  reps); every file contains 512 queries; the agreement check ran against
-  per-rep references; the figure's medians match `summary_agg.csv`; the
-  configured `OMP_NUM_THREADS` matches `faiss.omp_get_max_threads()`
-  after `faiss.omp_set_num_threads` in every worker record.
-- Not verified: actual achieved CPU frequency during the run,
-  P-core vs E-core placement of worker threads, memory bandwidth
-  utilization, cache behavior, and OS scheduler decisions. Any claim
-  about those mechanisms would be a hypothesis.
+- Synthetic standard-normal data only. A real HyArg index with different
+  distribution, cardinality, or dimensionality may behave differently.
+- `IndexFlatL2` is an exact brute-force index. Results do not transfer
+  directly to `IndexIVFPQ`, `HNSW`, or other approximate indexes.
+- Only threads in {1, 2, 4} and batch sizes {1, 32} were tested. 8/16
+  threads and larger batches may change the picture, especially on a
+  24-core CPU.
+- The decision rule is a descriptive range-overlap check, not a formal
+  statistical test. With 5 reps, confidence intervals are not a
+  substitute for a larger experiment if you need tighter conclusions.
+- Hardware counters (cycles, instructions, cache miss rates, memory
+  bandwidth, RAPL energy) and actual CPU utilisation were **not
+  measured**. Explanations invoking cache, P-core/E-core placement, or
+  memory bandwidth would be hypotheses, not findings from this run.
+
+## What was and was not verified by the latest run
+
+- **Verified by `runs/20261107T032705Z-full-6604f72/`:** 30 per-call
+  records written; manifest-vs-records check returned `state=completed`;
+  every record's dataset SHA-256 matched the manifest; every record's
+  configured OpenMP limit and `faiss.omp_get_max_threads()` matched the
+  requested thread count; `threadpoolctl` confirmed OpenBLAS and both
+  libomp runtimes honoured the configured thread cap; agreement check
+  ran against a per-rep reference for every non-reference record.
+- **Verified by `tests/test_regression.py`:** smoke end-to-end,
+  smoke/full isolation, incomplete-full detection by `analyze.py`,
+  record-shape validation, throughput formula, decision-rule
+  consistency.
+- **Not verified:** actual CPU frequency and boost state during timing,
+  P-core/E-core placement, cache/memory-bandwidth behaviour, energy,
+  achieved CPU utilisation percentage, and any claim about **why** the
+  observed scaling is what it is. These are explicitly documented as
+  unknown in `machine.json`.
