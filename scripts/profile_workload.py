@@ -5,23 +5,34 @@ Design:
   - 10 warm-up search calls happen BEFORE the measured region.
   - Inside the measured region, the same 512 queries are run in batches
     of the requested batch size, in a tight loop, repeated across the
-    full query set, for a configurable wall-clock duration (default 25s).
-  - Queries are REPEATED, not freshly generated. This is intentional for
-    a profiler run so the measured region is a single, stable workload.
-    For headline performance numbers use scripts/run_bench.py instead.
+    full query set, for a configurable wall-clock duration.
+  - Queries are REPEATED (wrapped) at the end of the batch stream.
+    This is intentional for a profiler run so the measured region is a
+    single, stable workload. Headline performance numbers must come
+    from scripts/run_bench.py, not this script.
 
-The script optionally emits Intel ITT markers (via the `itt-py` package
-if installed) to delimit the measured region, so VTune can filter on
-"measured_region". If ITT is not available, we still delimit the region
-with two sentinel prints that VTune's time-line view can anchor to.
-
-If run with `--vtune-pause` the process will PAUSE itself (instead of
-exiting) for a few seconds AFTER the measured region, giving a running
-`vtune -collect` the chance to finalise its capture cleanly.
+Region control for VTune:
+  - If the Intel ITT notify DLL (libittnotify / libittnotify_collector)
+    is loadable, this script calls __itt_resume() when entering the
+    measured region and __itt_pause() when leaving it. When VTune is
+    launched with `-start-paused`, data collection is enabled only
+    while the region is active, so index load / build / warm-up are
+    NOT part of the collected sample set. This is the "region
+    filtering that excludes loading, index construction, and warm-up"
+    requirement.
+  - When ITT is not loadable, the script still emits
+    PROFILE_REGION_START / PROFILE_REGION_END sentinel lines but
+    records itt_available=false in its JSON summary. Console prints
+    are NOT by themselves a filter; the JSON flag makes this explicit
+    to downstream readers.
+  - The sampled event counters and the "queries_in_region" count are
+    produced from the same region start/stop points, so matched-work
+    normalization downstream (cycles/query etc.) is well defined.
 """
 from __future__ import annotations
 
 import argparse
+import ctypes
 import datetime as dt
 import hashlib
 import json
@@ -30,18 +41,87 @@ import sys
 import time
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(ROOT / "scripts"))
 
-# Optional ITT API. Available when VTune's ITT SDK is installed and the
-# Python binding `itt` is on PYTHONPATH. We treat absence as expected.
-try:
-    import itt  # type: ignore
-    _HAS_ITT = True
-except Exception:
-    _HAS_ITT = False
+# ------------------- ITT loader -----------------------------------------
+def _load_ittnotify() -> tuple[object | None, str]:
+    """Try several standard VTune install locations for libittnotify."""
+    if sys.platform != "win32":
+        for name in ("libittnotify.so", "libittnotify_collector.so"):
+            try:
+                return ctypes.CDLL(name), name
+            except OSError:
+                pass
+        return None, "not found (non-Windows)"
+    candidate_dirs: list[Path] = []
+    # 1. User-pointed override.
+    env = os.environ.get("ITT_LIB_DIR") or os.environ.get("VTUNE_PROFILER_DIR")
+    if env:
+        candidate_dirs.append(Path(env))
+    # 2. oneAPI standard install (any version).
+    oneapi_vtune = Path(r"C:\Program Files (x86)\Intel\oneAPI\vtune")
+    if oneapi_vtune.exists():
+        for v in sorted(oneapi_vtune.iterdir(), reverse=True):
+            if v.is_dir():
+                candidate_dirs.extend([
+                    v / "sdk" / "lib64",
+                    v / "sdk" / "lib",
+                    v / "bin64",
+                ])
+    # 3. Legacy VTune Amplifier.
+    legacy = Path(r"C:\Program Files (x86)\IntelSWTools")
+    if legacy.exists():
+        for v in sorted(legacy.iterdir(), reverse=True):
+            if v.is_dir() and v.name.lower().startswith("vtune"):
+                candidate_dirs.extend([
+                    v / "sdk" / "lib64",
+                    v / "bin64",
+                ])
+    dll_names = (
+        "libittnotify.dll", "libittnotify_collector.dll",
+        "ittnotify_collector.dll",
+    )
+    tried: list[str] = []
+    for d in candidate_dirs:
+        for name in dll_names:
+            full = d / name
+            tried.append(str(full))
+            if full.exists():
+                try:
+                    return ctypes.CDLL(str(full)), str(full)
+                except OSError:
+                    continue
+    # 4. Plain name on PATH (if setvars has been sourced).
+    for name in dll_names:
+        tried.append(name)
+        try:
+            return ctypes.CDLL(name), name
+        except OSError:
+            continue
+    return None, f"not found (tried: {len(tried)} paths)"
 
 
+_ITT_LIB, _ITT_LIB_PATH = _load_ittnotify()
+_HAS_ITT = False
+if _ITT_LIB is not None:
+    try:
+        _ITT_LIB.__itt_resume.restype = None
+        _ITT_LIB.__itt_pause.restype = None
+        _HAS_ITT = True
+    except AttributeError:
+        _HAS_ITT = False
+
+
+def itt_resume() -> None:
+    if _HAS_ITT:
+        _ITT_LIB.__itt_resume()
+
+
+def itt_pause() -> None:
+    if _HAS_ITT:
+        _ITT_LIB.__itt_pause()
+
+
+# ------------------- misc -----------------------------------------------
 def sha256_file(path: Path, chunk: int = 1 << 20) -> str:
     h = hashlib.sha256()
     with path.open("rb") as f:
@@ -60,11 +140,15 @@ def main() -> None:
     p.add_argument("--duration-s", type=float, default=25.0,
                    help="target wall-clock duration of the measured region")
     p.add_argument("--k", type=int, default=5)
-    p.add_argument("--data-dir", type=str, default=str(ROOT / "data"))
+    p.add_argument("--data-dir", type=str,
+                   default=str(Path(__file__).resolve().parent.parent / "data"))
     p.add_argument("--out", type=str, required=True,
                    help="JSON summary output path")
-    p.add_argument("--vtune-pause", type=float, default=0.0,
-                   help="seconds to sleep AFTER the measured region "
+    p.add_argument("--settling-s", type=float, default=2.0,
+                   help="sleep after warm-up, before the measured region, "
+                        "to let the collector ramp (default 2s)")
+    p.add_argument("--vtune-pause-s", type=float, default=0.0,
+                   help="seconds to sleep after the measured region "
                         "(gives external collectors time to flush)")
     args = p.parse_args()
 
@@ -75,8 +159,6 @@ def main() -> None:
     if args.duration_s <= 0:
         raise SystemExit("--duration-s must be > 0")
 
-    # Environment thread limits should have been set by the launcher;
-    # we only enforce FAISS's OMP post-import.
     import numpy as np
     import faiss
     try:
@@ -94,6 +176,10 @@ def main() -> None:
             f"dataset .npy missing in {data_dir}; run scripts/make_data.py"
         )
 
+    # With ITT, make sure the collector is PAUSED while we set up.
+    # (Harmless if the collector isn't running.)
+    itt_pause()
+
     xb = np.load(xb_path)
     xq = np.load(xq_path)
     d = int(xb.shape[1])
@@ -110,13 +196,12 @@ def main() -> None:
         "error": "threadpoolctl not installed",
     }
 
+    if args.settling_s > 0:
+        time.sleep(args.settling_s)
+
     # --- MEASURED REGION ---------------------------------------------------
-    # Sentinel prints flush stdout so VTune's user-mode sampling timeline
-    # can anchor to them even without ITT.
     print("PROFILE_REGION_START", flush=True)
-    if _HAS_ITT:
-        itt.resume()
-        itt.task_begin("faiss_search_region")
+    itt_resume()
 
     deadline = time.perf_counter() + args.duration_s
     batches_done = 0
@@ -130,8 +215,6 @@ def main() -> None:
         s = idx
         e = s + bs
         if e > nq:
-            # Wrap at the end of the query set rather than slicing short,
-            # so every batch has exactly `bs` queries.
             s = 0
             e = bs
             idx = 0
@@ -148,14 +231,12 @@ def main() -> None:
     t_region_end = time.perf_counter()
     region_wall = t_region_end - t_region_start
 
-    if _HAS_ITT:
-        itt.task_end()
-        itt.pause()
+    itt_pause()
     print("PROFILE_REGION_END", flush=True)
     # ----------------------------------------------------------------------
 
     summary = {
-        "schema_version": 1,
+        "schema_version": 2,
         "mode": "profile_workload",
         "started_at_utc": dt.datetime.now(dt.timezone.utc).strftime(
             "%Y-%m-%dT%H:%M:%SZ"),
@@ -163,6 +244,7 @@ def main() -> None:
         "batch_size": int(args.batch_size),
         "k": int(args.k),
         "duration_target_s": float(args.duration_s),
+        "settling_s": float(args.settling_s),
         "region_wall_s": region_wall,
         "sum_call_s": sum_call_s,
         "batches_in_region": batches_done,
@@ -172,6 +254,7 @@ def main() -> None:
         "query_set_repeats_wrapped": True,
         "query_set_size": int(nq),
         "itt_available": _HAS_ITT,
+        "itt_library_path": _ITT_LIB_PATH,
         "env": {
             "OMP_NUM_THREADS": os.environ.get("OMP_NUM_THREADS"),
             "MKL_NUM_THREADS": os.environ.get("MKL_NUM_THREADS"),
@@ -193,10 +276,11 @@ def main() -> None:
     print(f"wrote {args.out}  "
           f"batches={batches_done} queries={queries_done} "
           f"wall={region_wall:.3f}s "
-          f"throughput={summary['throughput_qps_search_only']:.1f} qps")
+          f"throughput={summary['throughput_qps_search_only']:.1f} qps "
+          f"itt_available={_HAS_ITT}")
 
-    if args.vtune_pause > 0:
-        time.sleep(args.vtune_pause)
+    if args.vtune_pause_s > 0:
+        time.sleep(args.vtune_pause_s)
 
 
 if __name__ == "__main__":

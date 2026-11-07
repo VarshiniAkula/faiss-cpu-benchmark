@@ -30,7 +30,7 @@ On this CPU, with that index and k:
 ### Thread scaling (batch=32, search-only throughput, qps)
 
 From `runs/20261107T064707Z-full-8b401ae/` (commit `8b401ae`, source
-clean, 30/30 records; agreement 1.000 across every rep):
+clean, 40/40 records; agreement 1.000 across every rep):
 
 | threads | median qps | min    | max    | speedup | parallel eff. | % vs 1t |
 |---------|------------|--------|--------|---------|---------------|---------|
@@ -71,8 +71,10 @@ E-cores as logical CPUs 16..31 (no SMT), `EfficiencyClass` 1 vs 0.
 | 4 physical E-cores    | 1235.0     | 342.2  | 1276.5 | 1277, 1235, 1245, 342, 418 |
 
 Headline ratio (medians): **P-cores / E-cores ≈ 2.66x**. The default
-scheduler lands between the two, consistent with the OS placing most
-threads on P-cores when the system is otherwise idle.
+scheduler median lands between the two. Whether the OS actually placed
+most default-scheduler threads on P-cores was **not measured** here;
+VTune thread/core placement evidence (Stage 3) would be needed to
+support such a claim.
 
 Two outlier reps (one in P-cores, two in E-cores) are 3–8x slower than
 the rest of their sub-run. Observed affinity still matches requested
@@ -82,27 +84,45 @@ thread-pool recreation when CPU set is restricted, kernel/driver work
 landing on the affinity set, thermal settling — none verified without
 hardware counters or VTune).
 
-### Why 16 threads regressed — hypothesis supported by P/E evidence
+**Preliminary status.** The 2.66x figure is from 5-rep sub-runs executed
+back-to-back per placement. Follow-up work (`scripts/pe_experiment.py`
+rewritten for this stage) interleaves placements per repetition and
+raises the rep count; see the new PE run and comparison for the current
+figure that supersedes this preliminary value.
+
+### Why 16 threads regressed — mechanism unresolved
 
 **Observation (scaling):** throughput peaks at 8 threads and drops
 ~18% at 16 threads.
 
-**Observation (P/E):** on 4 E-cores the same workload runs ~2.66x
-slower than on 4 P-cores.
+**Observation (P/E, preliminary):** on 4 physical E-cores the same
+workload runs ~2.66x slower than on 4 physical P-cores. This is a
+property of the per-core work rate, not a direct explanation of the
+scaling curve.
 
-**Hypothesis (supported, not proven):** the i9-14900HX has 8 P-cores.
-At 16 OpenMP threads the runtime necessarily schedules some workers
-onto E-cores (either exclusively, or sharing P-cores via SMT). FAISS's
-batched L2 search uses a mostly-balanced static partition of the batch
-across threads, so slow-thread barrier wait makes the batch runtime
-dominated by the slowest worker. E-cores at ~0.38x the throughput
-per thread of P-cores are plausible candidates for that slowest worker.
+**Important correction to earlier wording.** This machine's 8 P-cores
+expose **16 logical processors via SMT**, so 16 OpenMP threads can
+fit on P-cores alone (two threads per physical core, SMT siblings).
+"16 threads necessarily spill onto E-cores" is **not** supported by
+the available topology data and has been removed. Candidate
+mechanisms for the 16-thread regression that remain live:
 
-**What would prove this:** a VTune Microarchitecture Exploration
-profile at 16 threads showing E-core utilisation with higher
-`Front-End Bound` or `Retiring` relative to a 4 P-core run, plus
-imbalance in per-thread completion time. Commands are provided in
-`docs/VTUNE_COMMANDS.md`; see Stage 2/3 status below.
+- SMT contention: two logical threads sharing one P-core's physical
+  execution units can contend for L1/L2 cache, FP units, and memory
+  controllers.
+- E-core placement by the OS scheduler: under default affinity the
+  kernel may still place some workers on E-cores even when SMT
+  capacity exists.
+- OMP thread-management overhead (barriers, work distribution) at
+  higher thread counts.
+
+**Which of these actually dominates is unresolved.** FAISS's internal
+work-partitioning strategy for `IndexFlatL2` is not characterised by
+this experiment and should not be assumed. Confirming the mechanism
+requires VTune Microarchitecture Exploration + thread/core placement
+evidence at 16 threads (and comparisons at 1, 4, 8 threads), which
+is the Stage 2/3 work still blocked on VTune install. Commands are
+in `docs/VTUNE_COMMANDS.md`.
 
 ## Historical results preserved
 
@@ -341,10 +361,13 @@ runs/
 - **Thread scaling, 1→16 threads at batch=32:** peak at 8 threads
   (+118% median vs 1 thread), regression at 16 threads (+79%,
   down from +118%). Scaling judgment labelled `regression`.
-- **P-core vs E-core affinity at 4 threads:** medians 3291 qps
-  (P-cores) vs 1235 qps (E-cores), ratio ~2.66x. Default scheduler
-  sits between. Observed affinity verified to match requested in
-  every per-call record.
+- **P-core vs E-core affinity at 4 threads (preliminary):** medians
+  3291 qps (P-cores) vs 1235 qps (E-cores), ratio ~2.66x; default
+  scheduler median between them. **Preliminary** — placements were
+  not interleaved and reps=5. A re-run with interleaved placements
+  and 10 reps is the authoritative PE number; see the `*-pe2-*` run
+  dir in the headline P/E section once published. Observed affinity
+  verified to match requested in every per-call record.
 - **Topology discovery:** `GetLogicalProcessorInformationEx` cleanly
   separates 8 P-cores from 16 E-cores on this hybrid CPU; result is
   deterministic and testable.
