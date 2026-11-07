@@ -1,0 +1,4 @@
+Thread,CPU Time,CPU Time:Effective Time,CPU Time:Spin Time,CPU Time:Spin Time:Imbalance or Serial Spinning,CPU Time:Spin Time:Lock Contention,CPU Time:Spin Time:Other,CPU Time:Overhead Time,CPU Time:Overhead Time:Creation,CPU Time:Overhead Time:Scheduling,CPU Time:Overhead Time:Reduction,CPU Time:Overhead Time:Atomics,CPU Time:Overhead Time:Other,PID,TID
+OMP Primary Thread #0 (TID: 41024),24.602640,24.513266,0.013074,0.0,0.0,0.013074,0.076300,0.015452,0.0,0.0,0.0,0.060848,45572,41024
+func@0x180047fb0 (TID: 31708),0.021796,0.021796,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,45572,31708
+func@0x180134e50 (TID: 26756),0.021388,0.021388,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,45572,26756

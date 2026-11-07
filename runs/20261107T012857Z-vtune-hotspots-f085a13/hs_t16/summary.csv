@@ -1,0 +1,39 @@
+Hierarchy Level,Metric Name,Metric Value
+0,Elapsed Time,41.961917
+1,CPU Time,209.623418
+2,Effective Time,32.243157
+2,Spin Time,173.738426
+3,Imbalance or Serial Spinning,0.0
+3,Lock Contention,0.0
+3,Other,173.738426
+2,Overhead Time,3.641836
+3,Creation,1.315574
+3,Scheduling,0.0
+3,Reduction,0.0
+3,Atomics,0.0
+3,Other,2.326261
+1,Total Thread Count,53
+1,Paused Time,16.953273
+0,Top Hotspots,
+0,Function,Module,CPU Time,% of CPU Time(%)
+0,WaitForSingleObjectEx,KERNELBASE.dll,92.175518,44.0
+0,func@0x18001c8c0,libomp140.x86_64-21fc660a28479b04d9fec85174fc894e.dll,47.303667,22.6
+0,SwitchToThread,KERNELBASE.dll,29.144285,13.9
+0,func@0x18001cf82,ntdll.dll,7.638457,3.6
+0,sgemm_kernel_HASWELL,openblas-1ba25ee8d70fa3c45ede15bdc95fbee3.dll,6.495006,3.1
+0,[Others],N/A,26.866485,12.8
+0,Collection and Platform Info,
+1,Application Command Line,C:\Users\sdas8\faiss-cpu-benchmark\.venv_vtune\Scripts\python.exe "scripts\profile_workload.py" "--threads" "16" "--duration-s" "25" "--settling-s" "2" "--out" "runs\20261107T012857Z-vtune-hotspots-f085a13\hs_t16\workload_summary.json" 
+1,Operating System,Microsoft Windows 11
+1,Computer Name,LeggitLegion
+1,Result Size,17686497
+1,Collection start time,08:32:43 07/11/2026 UTC
+1,Collection stop time,08:33:25 07/11/2026 UTC
+1,Collector Type,User-mode sampling and tracing
+1,CPU,
+2,Name,Intel(R) microarchitecture code named Raptorlake-DT
+2,Frequency,2419200549
+2,Logical CPU Count,32
+2,Cache Allocation Technology,
+3,Level 2 capability,not detected
+3,Level 3 capability,not detected

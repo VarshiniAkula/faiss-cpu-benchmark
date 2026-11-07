@@ -8,8 +8,12 @@ data/xq.npy
 __pycache__/
 *.pyc
 
-# Raw VTune captures (potentially hundreds of MB). Exported CSV/JSON
-# in runs/vtune-*/ ARE committed; the raw .vtune directories are not.
-runs/vtune-*/hs_*/r*hs/
-runs/vtune-*/uarch_*/r*ue/
-runs/vtune-*/*.lock
+# Raw VTune captures (tens of MB each). Exported CSV/JSON in
+# runs/*-vtune-*/ ARE committed; the raw per-run data directories are
+# not. The .vtune "project" file at the top of each result-dir is kept.
+runs/*-vtune-*/*/config/
+runs/*-vtune-*/*/data.*/
+runs/*-vtune-*/*/log/
+runs/*-vtune-*/*/sqlite-db/
+runs/*-vtune-*/*/.norun
+runs/*-vtune-*/*/*.lock

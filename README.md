@@ -100,15 +100,71 @@ Observations:
   in every per-call record of the P- and E-core sub-runs
   (`affinity_check.mismatches == 0`).
 
-### Why 16 threads regressed — mechanism unresolved
+### Why 16 threads regressed — VTune evidence
 
 **Observation (scaling):** throughput peaks at 8 threads and drops
 ~18% at 16 threads.
 
 **Observation (P/E, v2):** on 4 physical E-cores the same workload
 runs ~3.43x slower than on 4 physical P-cores. This is a property of
-the per-core work rate on this CPU, not a direct explanation of the
-scaling curve at 16 threads.
+the per-core work rate on this CPU, not by itself an explanation of
+the scaling curve at 16 threads.
+
+**Observation (VTune, `runs/20261107T012857Z-vtune-hotspots-f085a13/`):**
+Hotspots collections at 1, 4, 8, 16 threads with the measured region
+ITT-gated (`PROFILE_REGION_START/END`, `-start-paused`, `Paused Time`
+17–20 s in each run confirms setup/warm-up was excluded). Key totals
+across the measured region:
+
+| threads | CPU Time | Effective Time | Spin Time | Overhead | Total threads |
+|---------|---------:|---------------:|----------:|---------:|--------------:|
+| 1       |  24.6 s  | 24.56 s        |  0.01 s   | 0.08 s   | 8             |
+| 4       |  74.0 s  | 19.93 s        | 52.60 s   | 1.45 s   | 17            |
+| 8       | 119.0 s  | 16.90 s        |100.36 s   | 1.78 s   | 29            |
+| 16      | 209.6 s  | 32.24 s        |173.74 s   | 3.64 s   | 53            |
+
+Top hotspots at every multi-threaded count are **`SwitchToThread`**
+(KERNELBASE.dll), **`WaitForSingleObjectEx`** (KERNELBASE.dll), and a
+**`libomp140` spin function** — all three are OMP barrier / kernel
+wait, not search work. At 16 threads these three add up to ~81 % of
+total CPU time, with the productive work (`sgemm_kernel_HASWELL` +
+`sgemm_incopy_HASWELL` in OpenBLAS) only ~6 %.
+
+Per-thread breakdown at 16 threads (`hs_t16/per_thread.csv`): all 16
+worker threads do essentially identical CPU work (~9.3 s each,
+~1.6 s effective + ~7.7 s spin). There is **no slow-thread outlier**
+that would indicate some workers landed on E-cores and dragged a
+barrier. Work distribution across workers is balanced.
+
+**What the VTune evidence establishes:**
+
+- The 16-thread regression is dominated by **OMP synchronization /
+  spin time**, which scales near-linearly in CPU-time with thread
+  count while effective (productive) CPU time does not.
+- "FAISS at 16 threads necessarily spills onto E-cores" is **not
+  supported** by this evidence. With balanced per-thread CPU
+  distribution, a mix of fast and slow cores would produce a visible
+  imbalance in effective-time per thread; we see none.
+- The compute itself is **OpenBLAS `sgemm_kernel_HASWELL`** — the
+  Haswell-AVX2 kernel, not an AVX-512 kernel — on this
+  i9-14900HX. OpenBLAS's windows wheel ships that kernel; this is a
+  property of the shipped BLAS build, not of the CPU.
+
+**What is still unresolved:**
+
+- Whether the OS scheduler actually placed the 16 OMP workers across
+  P and E cores. The `-report hw-events -group-by=cpu` table requires
+  hardware-counter sampling (uarch-exploration), which needs the
+  VTune kernel sampling driver + admin and is **not available** on
+  this install (`vtune: Warning: Microarchitecture performance
+  insights will not be available. Make sure the sampling driver is
+  installed and enabled on your system`). The exported `by_cpu.csv`
+  files are consequently empty.
+- Whether swapping OpenBLAS for an AVX-512 BLAS (e.g. MKL) would
+  change the regression knee. Not tested.
+- Whether running with `KMP_BLOCKTIME=0` or thread binding
+  (`OMP_PROC_BIND=close`) would reduce the observed spin time. Not
+  tested.
 
 **Important correction to earlier wording.** This machine's 8 P-cores
 expose **16 logical processors via SMT**, so 16 OpenMP threads can
@@ -143,18 +199,40 @@ in `docs/VTUNE_COMMANDS.md`.
 | 2f23831   | `runs/20261107T042639Z-full-2f23831/`          | validated schema-2 full run, 3-thread set           |
 | 8b401ae   | `runs/20261107T064707Z-full-8b401ae/`          | 5-thread scaling (1,2,4,8,16)                       |
 | 9f2ab32   | `runs/20261107T071454Z-pe-9f2ab32/`            | P/E experiment v1 (5 reps, sequential, preserved)   |
-| 11793f1   | `runs/20261107T080151Z-pe2-11793f1/`           | **P/E experiment v2 (10 reps, interleaved)**        |
+| 11793f1   | `runs/20261107T080151Z-pe2-11793f1/`           | P/E experiment v2 (10 reps, interleaved)            |
+| f085a13   | `runs/20261107T012857Z-vtune-hotspots-f085a13/`| **VTune Hotspots @ 1/4/8/16 threads**               |
 
 The historical 3-thread runs are still accepted by the current
 analyser without modification; new runs add two threads at the top
 and the P/E experiment.
 
-## Stage 2/3: Intel VTune collection — *blocked, awaiting install*
+## Stage 2/3: Intel VTune collection — *Hotspots completed*
 
-VTune Profiler is **not installed** on this Legion as of commit
-`9f2ab32`. Everything needed to collect the three requested profiles
-(Hotspots + Microarchitecture Exploration at 1, 4, and 8 threads) is
-implemented and documented:
+**Installed:** Intel VTune Profiler 2025.3.0 via the oneAPI Base
+Toolkit (`winget install Intel.OneAPI.BaseToolkit`). ITT runtime at
+`C:\Program Files (x86)\Intel\oneAPI\vtune\latest\bin64\runtime\ittnotify_collector.dll`.
+`scripts/profile_workload.py` loads it via ctypes and calls
+`__itt_resume` / `__itt_pause` to delimit the measured region.
+
+**Hotspots collected** at 1, 4, 8, 16 threads
+(`runs/20261107T012857Z-vtune-hotspots-f085a13/`). Exported
+`summary.csv`, `hotspots.csv`, `per_thread.csv`, and
+`workload_summary.json` are committed; raw VTune capture directories
+(config/, data.0/, log/, sqlite-db/) are gitignored. See the "Why 16
+threads regressed" section above for the primary finding
+(OMP spin time dominates; no E-core imbalance in per-thread data).
+
+**Microarchitecture Exploration not collected** — this consumer SKU
+lacks the VTune kernel sampling driver and admin privileges needed
+for hardware-event sampling. VTune emitted `Warning:
+Microarchitecture performance insights will not be available. Make
+sure the sampling driver is installed and enabled on your system.`
+We treat that as "unavailable on this host" rather than inferring the
+value.
+
+### Remaining VTune work
+
+Everything needed is implemented and documented:
 
 - **Workload:** `scripts/profile_workload.py` runs the same batched
   search in a tight loop for a configurable wall-clock duration
@@ -380,16 +458,29 @@ runs/
 - **Topology discovery:** `GetLogicalProcessorInformationEx` cleanly
   separates 8 P-cores from 16 E-cores on this hybrid CPU; result is
   deterministic and testable.
+- **VTune Hotspots at 1/4/8/16 threads with ITT-gated region:**
+  spin / kernel-wait time scales near-linearly with thread count
+  while effective (productive) CPU time does not; per-thread work
+  distribution at 16 threads is balanced (no E-core imbalance
+  signature); productive compute is OpenBLAS `sgemm_kernel_HASWELL`
+  (AVX2, not AVX-512) on this Windows install. Hotspots evidence
+  supports the "OMP sync overhead dominates at 16 threads" reading
+  and *does not support* the earlier "spills onto E-cores"
+  hypothesis.
 - **Validation hardening preserved:** all existing failure modes
   (forged sums, manifest mismatches, incomplete runs, missing
   references) still rejected; 47 / 47 regression tests pass.
 
 ## What this extension did NOT verify
 
-- The 16-thread regression's **mechanism** (E-core spill vs SMT
-  contention vs scheduler ping-pong) — requires VTune profiles
-  (Stage 2/3, blocked).
-- Cause of the 3–8x outlier reps in the P/E sub-runs.
+- Which specific CPUs the OS scheduler used for the default-affinity
+  runs. `-report hw-events -group-by=cpu` requires the VTune kernel
+  sampling driver + admin, not available on this host.
+- Whether swapping OpenBLAS for an AVX-512 BLAS (e.g. Intel MKL)
+  moves the regression knee. Not tested.
+- Cause of the wide E-core per-rep variability in the P/E v2 run
+  (353–1411 qps). Candidates include kernel/driver work landing on
+  the restricted CPU set and thermal transients; neither measured.
 - Boost clock residency on P- vs E-cores during the restricted runs.
 - Energy or performance-per-watt comparisons. **No such claim is
   made.**

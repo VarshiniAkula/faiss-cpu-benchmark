@@ -1,0 +1,41 @@
+Function,CPU Time,CPU Time:Effective Time,CPU Time:Spin Time,CPU Time:Spin Time:Imbalance or Serial Spinning,CPU Time:Spin Time:Lock Contention,CPU Time:Spin Time:Other,CPU Time:Overhead Time,CPU Time:Overhead Time:Creation,CPU Time:Overhead Time:Scheduling,CPU Time:Overhead Time:Reduction,CPU Time:Overhead Time:Atomics,CPU Time:Overhead Time:Other,Module,Function (Full),Source File,Start Address
+WaitForSingleObjectEx,41.803689,0.0,41.803689,0.0,0.0,41.803689,0.0,0.0,0.0,0.0,0.0,0.0,KERNELBASE.dll,WaitForSingleObjectEx,[Unknown],0x1800141d0
+func@0x18001c8c0,26.517166,0.0,25.976703,0.0,0.0,25.976703,0.540463,0.540463,0.0,0.0,0.0,0.0,libomp140.x86_64-21fc660a28479b04d9fec85174fc894e.dll,func@0x18001c8c0,[Unknown],0x18001c8c0
+SwitchToThread,26.297902,0.229000,26.068902,0.0,0.0,26.068902,0.0,0.0,0.0,0.0,0.0,0.0,KERNELBASE.dll,SwitchToThread,[Unknown],0x1800b57e0
+func@0x18001c390,6.675145,0.0,6.332178,0.0,0.0,6.332178,0.342967,0.342967,0.0,0.0,0.0,0.0,libomp140.x86_64-21fc660a28479b04d9fec85174fc894e.dll,func@0x18001c390,[Unknown],0x18001c390
+func@0x180015bd0,6.668755,6.668755,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,_swigfaiss_avx2.cp311-win_amd64.pyd,func@0x180015bd0,[Unknown],0x180015bd0
+sgemm_incopy_HASWELL,3.562399,3.562399,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,openblas-1ba25ee8d70fa3c45ede15bdc95fbee3.dll,sgemm_incopy_HASWELL,[Unknown],0x180a01af0
+sgemm_kernel_HASWELL,2.906717,2.906717,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,openblas-1ba25ee8d70fa3c45ede15bdc95fbee3.dll,sgemm_kernel_HASWELL,[Unknown],0x1809f7fc0
+[Unknown stack frame(s)],1.367538,1.367538,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,[Unknown],[Unknown stack frame(s)],[Unknown],0x0
+_kmp_fork_call,0.892496,0.0,0.022807,0.0,0.0,0.022807,0.869689,0.0,0.0,0.0,0.0,0.869689,libomp140.x86_64-21fc660a28479b04d9fec85174fc894e.dll,_kmp_fork_call,[Unknown],0x18001a130
+func@0x18001cf82,0.755575,0.755575,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,ntdll.dll,func@0x18001cf82,[Unknown],0x18001cf82
+SetEvent,0.499395,0.499395,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,KERNELBASE.dll,SetEvent,[Unknown],0x1800b7ab0
+func@0x1800b8b90,0.161877,0.161877,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,_swigfaiss_avx2.cp311-win_amd64.pyd,func@0x1800b8b90,[Unknown],0x1800b8b90
+func@0x1800b9810,0.124272,0.124272,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,_swigfaiss_avx2.cp311-win_amd64.pyd,func@0x1800b9810,[Unknown],0x1800b9810
+RtlEnterCriticalSection,0.121412,0.0,0.121412,0.0,0.0,0.121412,0.0,0.0,0.0,0.0,0.0,0.0,ntdll.dll,RtlEnterCriticalSection,[Unknown],0x18001cea0
+memset,0.106749,0.106749,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,VCRUNTIME140.dll,memset,[Unknown],0x180011730
+free_base,0.105646,0.105646,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,ucrtbase.dll,free_base,[Unknown],0x180012d60
+sgemm_thread_tn,0.067328,0.067328,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,openblas-1ba25ee8d70fa3c45ede15bdc95fbee3.dll,sgemm_thread_tn,[Unknown],0x1800e9300
+malloc_base,0.053314,0.053314,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,ucrtbase.dll,malloc_base,[Unknown],0x1800050a0
+ResetEvent,0.039496,0.039496,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,KERNELBASE.dll,ResetEvent,[Unknown],0x1800bc950
+sgemm_oncopy_HASWELL,0.031842,0.031842,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,openblas-1ba25ee8d70fa3c45ede15bdc95fbee3.dll,sgemm_oncopy_HASWELL,[Unknown],0x180a03250
+func@0x1804fd260,0.026308,0.026308,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,_swigfaiss_avx2.cp311-win_amd64.pyd,func@0x1804fd260,[Unknown],0x1804fd260
+RtlLeaveCriticalSection,0.023153,0.0,0.023153,0.0,0.0,0.023153,0.0,0.0,0.0,0.0,0.0,0.0,ntdll.dll,RtlLeaveCriticalSection,[Unknown],0x18001cfa0
+NtUserMsgWaitForMultipleObjectsEx,0.020096,0.020096,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,win32u.dll,NtUserMsgWaitForMultipleObjectsEx,[Unknown],0x18000af50
+func@0x180245570,0.019769,0.019769,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,openblas-1ba25ee8d70fa3c45ede15bdc95fbee3.dll,func@0x180245570,[Unknown],0x180245570
+NtUserGetMessage,0.018831,0.018831,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,win32u.dll,NtUserGetMessage,[Unknown],0x180001350
+func@0x18001d0de,0.017553,0.017553,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,ntdll.dll,func@0x18001d0de,[Unknown],0x18001d0de
+func@0x1800b0ef0,0.014141,0.014141,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,_swigfaiss_avx2.cp311-win_amd64.pyd,func@0x1800b0ef0,[Unknown],0x1800b0ef0
+PyDict_GetItemWithError,0.013292,0.013292,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,python311.dll,PyDict_GetItemWithError,[Unknown],0x180091870
+func@0x180572bf0,0.013264,0.013264,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,_swigfaiss_avx2.cp311-win_amd64.pyd,func@0x180572bf0,[Unknown],0x180572bf0
+[OpenMP fork],0.013113,0.0,0.0,0.0,0.0,0.0,0.013113,0.013113,0.0,0.0,0.0,0.0,libomp140.x86_64-21fc660a28479b04d9fec85174fc894e.dll,_kmpc_fork_call,[Unknown],0x18000e970
+Py_RunMain,0.013001,0.013001,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,python311.dll,Py_RunMain,[Unknown],0x18001a368
+sgemm_beta_HASWELL,0.012780,0.012780,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,openblas-1ba25ee8d70fa3c45ede15bdc95fbee3.dll,sgemm_beta_HASWELL,[Unknown],0x180a03620
+exec_blas,0.012728,0.012728,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,openblas-1ba25ee8d70fa3c45ede15bdc95fbee3.dll,exec_blas,[Unknown],0x180245890
+blas_memory_alloc,0.012667,0.012667,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,openblas-1ba25ee8d70fa3c45ede15bdc95fbee3.dll,blas_memory_alloc,[Unknown],0x1802449c0
+func@0x18001b6e0,0.011987,0.0,0.0,0.0,0.0,0.0,0.011987,0.011987,0.0,0.0,0.0,0.0,libomp140.x86_64-21fc660a28479b04d9fec85174fc894e.dll,func@0x18001b6e0,[Unknown],0x18001b6e0
+func@0x1818d38a0,0.007836,0.007836,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,openblas-1ba25ee8d70fa3c45ede15bdc95fbee3.dll,func@0x1818d38a0,[Unknown],0x1818d38a0
+SwitchToThread,0.006660,0.006660,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,KERNEL32.dll,SwitchToThread,[Unknown],0x180031080
+WaitForSingleObject,0.006334,0.0,0.006334,0.0,0.0,0.006334,0.0,0.0,0.0,0.0,0.0,0.0,KERNELBASE.dll,WaitForSingleObject,[Unknown],0x1800c1be0
+[Outside any known module],0.006016,0.006016,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,[Unknown],[Outside any known module],[Unknown],0x0
+func@0x180055e10,0.002514,0.002514,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,libomp140.x86_64-21fc660a28479b04d9fec85174fc894e.dll,func@0x180055e10,[Unknown],0x180055e10
