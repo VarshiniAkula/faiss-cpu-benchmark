@@ -12,8 +12,15 @@ Modes:
   --mode smoke : one config (1,1,0). Writes a smoke manifest so analyze
                  won't confuse it with a full run.
 
-Refuses to overwrite an existing full run (manifest present & mode=full
-& any records present) unless --allow-overwrite is given explicitly.
+Safe behaviour on overwrite:
+  --allow-overwrite is required to reuse a non-empty run_dir. When set,
+  the orchestrator DELETES prior per_call/*.json and analysis artefacts
+  before starting, so new records cannot be combined with stale ones.
+
+Safe behaviour on interrupt/failure:
+  If the run loop raises (worker failed, KeyboardInterrupt, anything),
+  the orchestrator writes status.json with state 'failed' or
+  'interrupted' and the records present so far, then re-raises.
 """
 from __future__ import annotations
 
@@ -23,9 +30,11 @@ import hashlib
 import json
 import os
 import random
+import signal
 import subprocess
 import sys
 import time
+import traceback
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -35,6 +44,13 @@ import validate as v  # noqa: E402
 THREAD_CHOICES = [1, 2, 4]
 BATCH_CHOICES = [1, 32]
 CONFIGS = [(t, b) for b in BATCH_CHOICES for t in THREAD_CHOICES]
+
+# Analysis artefacts cleared on overwrite.
+ANALYSIS_ARTEFACTS = (
+    "summary.csv", "summary_agg.csv", "agreement.json",
+    "recommendations.json", "figure.png", "analysis_notes.json",
+    "status.json", "run_order.json",
+)
 
 
 def utc_now_iso() -> str:
@@ -114,8 +130,9 @@ def run_one(run_dir: Path, data_dir: Path, threads: int, batch_size: int,
     if r.returncode != 0:
         print("STDOUT:", r.stdout)
         print("STDERR:", r.stderr)
-        raise SystemExit(
-            f"worker failed t={threads} b={batch_size} rep={rep}"
+        raise RuntimeError(
+            f"worker failed t={threads} b={batch_size} rep={rep} "
+            f"rc={r.returncode}"
         )
     print(f"[rep {rep}] b={batch_size} t={threads} wall={wall:.2f}s "
           f"-> {out_path.relative_to(run_dir)}")
@@ -130,6 +147,10 @@ def existing_run_blocks_overwrite(run_dir: Path) -> str | None:
     """Return reason string if there's an existing run we shouldn't clobber."""
     manifest = run_dir / "manifest.json"
     if not manifest.exists():
+        pc = run_dir / "per_call"
+        if pc.exists() and any(pc.glob("*.json")):
+            return (f"{run_dir}/per_call contains records but no manifest; "
+                    f"refusing to touch (use --allow-overwrite).")
         return None
     try:
         m = json.loads(manifest.read_text())
@@ -142,8 +163,21 @@ def existing_run_blocks_overwrite(run_dir: Path) -> str | None:
                 f"refusing to overwrite (use --allow-overwrite).")
     if m.get("mode") == "smoke" and has_any:
         return (f"{run_dir} already contains a 'smoke' run; "
-                f"use a different --run-dir.")
+                f"use a different --run-dir (or --allow-overwrite).")
     return None
+
+
+def clear_prior_artefacts(run_dir: Path) -> None:
+    """Delete prior per_call records and analysis artefacts so the new
+    run cannot combine with stale data via an --allow-overwrite."""
+    pc = run_dir / "per_call"
+    if pc.exists():
+        for p in pc.glob("*.json"):
+            p.unlink()
+    for name in ANALYSIS_ARTEFACTS + ("manifest.json", "machine.json"):
+        f = run_dir / name
+        if f.exists():
+            f.unlink()
 
 
 def write_manifest(run_dir: Path, mode: str, reps: int, seed: int,
@@ -184,7 +218,6 @@ def write_manifest(run_dir: Path, mode: str, reps: int, seed: int,
 
 
 def copy_machine_info(run_dir: Path) -> None:
-    # Prefer a freshly-generated per-run machine.json from inspect_machine.
     try:
         subprocess.run(
             [sys.executable, str(ROOT / "scripts" / "inspect_machine.py"),
@@ -198,37 +231,12 @@ def copy_machine_info(run_dir: Path) -> None:
         }, indent=2))
 
 
-def write_status(run_dir: Path, manifest: dict,
-                 records: dict) -> dict:
-    report = v.validate_manifest_vs_records(manifest, records)
-    if manifest["mode"] == "smoke":
-        state = (
-            "completed" if not report["missing"] and not report["duplicates"]
-            else "incomplete"
-        )
-    else:
-        state = (
-            "completed"
-            if not report["missing"] and not report["duplicates"]
-            and not report["extra"]
-            else "incomplete"
-        )
-    status = {
-        "state": state,
-        "mode": manifest["mode"],
-        "finished_at_utc": utc_now_iso(),
-        "n_records_present": len(records),
-        "n_entries_expected": len(manifest["expected_entries"]),
-        **report,
-    }
-    (run_dir / "status.json").write_text(json.dumps(status, indent=2))
-    return status
-
-
 def gather_records(run_dir: Path) -> dict:
     """Map (t, b, rep) -> list of file paths (list for duplicate detection)."""
     out: dict = {}
     pc = run_dir / "per_call"
+    if not pc.exists():
+        return out
     for p in sorted(pc.glob("*.json")):
         try:
             rec = json.loads(p.read_text())
@@ -241,6 +249,32 @@ def gather_records(run_dir: Path) -> dict:
             continue
         out.setdefault(key, []).append(str(p))
     return out
+
+
+def write_status(run_dir: Path, manifest: dict, state_override: str | None,
+                 note: str | None = None) -> dict:
+    records = gather_records(run_dir)
+    report = v.validate_manifest_vs_records(manifest, records)
+    if state_override is not None:
+        state = state_override
+    else:
+        if (not report["missing"] and not report["duplicates"]
+                and not report["extra"]):
+            state = "completed"
+        else:
+            state = "incomplete"
+    status = {
+        "state": state,
+        "mode": manifest["mode"],
+        "finished_at_utc": utc_now_iso(),
+        "n_records_present": len(records),
+        "n_entries_expected": len(manifest["expected_entries"]),
+        **report,
+    }
+    if note:
+        status["note"] = note
+    (run_dir / "status.json").write_text(json.dumps(status, indent=2))
+    return status
 
 
 def auto_run_id(mode: str, git: dict) -> str:
@@ -260,10 +294,10 @@ def main() -> None:
     p.add_argument("--queries-per-rep", type=int, default=512)
     p.add_argument("--k", type=int, default=5)
     p.add_argument("--seed", type=int, default=20261106)
-    p.add_argument("--allow-overwrite", action="store_true")
+    p.add_argument("--allow-overwrite", action="store_true",
+                   help="DANGEROUS: delete prior records in run_dir first.")
     args = p.parse_args()
 
-    # Argument validation up-front (positive ints etc).
     reps = args.reps if args.mode == "full" else 1
     v.validate_positive_int("reps", reps)
     v.validate_positive_int("k", args.k, 1, v.VALID_K_RANGE[1])
@@ -287,9 +321,12 @@ def main() -> None:
         ROOT / "runs" / auto_run_id(args.mode, git)
     )
     run_dir.mkdir(parents=True, exist_ok=True)
+
     reason = existing_run_blocks_overwrite(run_dir)
     if reason and not args.allow_overwrite:
         raise SystemExit(reason)
+    if args.allow_overwrite:
+        clear_prior_artefacts(run_dir)
 
     copy_machine_info(run_dir)
     configs = (
@@ -303,28 +340,45 @@ def main() -> None:
     print(f"run_dir={run_dir}")
     print(f"mode={args.mode} reps={reps} configs={configs}")
 
-    order_log = []
-    if args.mode == "smoke":
-        rec = run_one(run_dir, data_dir, 1, 1, 0, args.seed,
-                      args.queries_per_rep, args.k, expected_hashes)
-        order_log.append(rec)
-    else:
-        for rep in range(reps):
-            shuffled = list(configs)
-            random.Random(f"{args.seed}:{rep}").shuffle(shuffled)
-            print(f"=== rep {rep} order: {shuffled} ===")
-            for (t, b) in shuffled:
-                rec = run_one(run_dir, data_dir, t, b, rep, args.seed,
-                              args.queries_per_rep, args.k, expected_hashes)
-                order_log.append(rec)
+    order_log: list[dict] = []
+    state_override: str | None = None
+    note: str | None = None
+    try:
+        if args.mode == "smoke":
+            order_log.append(run_one(
+                run_dir, data_dir, 1, 1, 0, args.seed,
+                args.queries_per_rep, args.k, expected_hashes,
+            ))
+        else:
+            for rep in range(reps):
+                shuffled = list(configs)
+                random.Random(f"{args.seed}:{rep}").shuffle(shuffled)
+                print(f"=== rep {rep} order: {shuffled} ===")
+                for (t, b) in shuffled:
+                    order_log.append(run_one(
+                        run_dir, data_dir, t, b, rep, args.seed,
+                        args.queries_per_rep, args.k, expected_hashes,
+                    ))
+    except KeyboardInterrupt:
+        state_override = "interrupted"
+        note = "KeyboardInterrupt during run loop"
+        print("INTERRUPTED. Writing status and re-raising.", file=sys.stderr)
+        raise
+    except Exception as e:
+        state_override = "failed"
+        note = f"{type(e).__name__}: {e}"
+        traceback.print_exc()
+        print("FAILED. Writing status and re-raising.", file=sys.stderr)
+        raise
+    finally:
+        (run_dir / "run_order.json").write_text(
+            json.dumps(order_log, indent=2)
+        )
+        status = write_status(run_dir, manifest, state_override, note)
+        print(f"status={status['state']} "
+              f"present={status['n_records_present']}/"
+              f"{status['n_entries_expected']}")
 
-    (run_dir / "run_order.json").write_text(json.dumps(order_log, indent=2))
-
-    records = gather_records(run_dir)
-    status = write_status(run_dir, manifest, records)
-    print(f"status={status['state']} "
-          f"present={status['n_records_present']}/"
-          f"{status['n_entries_expected']}")
     if status["state"] != "completed":
         print("WARNING: run did not complete cleanly.")
         print(" missing   :", status["missing"])

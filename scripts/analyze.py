@@ -1,5 +1,9 @@
 """Analyse exactly one run directory. Smoke-safe. Validates first.
 
+All validation and agreement checks finish BEFORE any report artifact is
+written, so a run that fails validation never leaves partial summary
+files for someone to mistake for a published result.
+
 Writes INSIDE the run directory:
   summary.csv              per-run metrics
   summary_agg.csv          median + [min, max] per config
@@ -44,48 +48,79 @@ def decide_clear_winner(items: list[dict], best: dict,
     return True
 
 
-def load_run(run_dir: Path) -> dict:
-    manifest = json.loads((run_dir / "manifest.json").read_text())
+def load_and_validate_run(run_dir: Path) -> dict:
+    """Load the manifest and every per-call record, fully validate, and
+    return a dict with validated data. Raises ValueError/SystemExit on
+    any inconsistency. Does not write anything."""
+    manifest_path = run_dir / "manifest.json"
+    if not manifest_path.exists():
+        raise SystemExit(
+            f"{manifest_path} missing. --run-dir must point to a run "
+            f"directory produced by scripts/run_bench.py."
+        )
+    manifest = json.loads(manifest_path.read_text())
+
+    # Manifest's planned configs must themselves be valid.
+    v.validate_planned_configs(manifest)
+
     per_call = run_dir / "per_call"
     records_by_key: dict = {}
-    duplicate_paths: dict = {}
+    files_by_key: dict = {}
     for p in sorted(per_call.glob("*.json")):
-        rec = json.loads(p.read_text())
+        try:
+            rec = json.loads(p.read_text())
+        except Exception as e:
+            raise SystemExit(f"{p}: could not parse JSON: {e}")
         c = rec["config"]
         key = (int(c["threads"]), int(c["batch_size"]), int(c["rep"]))
-        if key in records_by_key:
-            duplicate_paths.setdefault(key, [records_by_key[key]["_path"]]).append(str(p))
-            # Keep only the first; flag.
-        else:
+        files_by_key.setdefault(key, []).append(str(p))
+        if key not in records_by_key:
             rec["_path"] = str(p)
             records_by_key[key] = rec
 
-    # Validate each record shape AND against manifest dataset.
-    expect = {"nb": None, "d": None, "k": int(manifest["k"]),
-              "queries_per_rep": int(manifest["queries_per_rep"])}
+    # Manifest-vs-records: missing / duplicates / extras.
+    report = v.validate_manifest_vs_records(manifest, files_by_key)
+    if report["missing"] or report["duplicates"] or report["extra"]:
+        raise SystemExit(
+            f"Run {run_dir} ({manifest['mode']} mode) is inconsistent; "
+            "refusing to publish.\n"
+            f" missing   : {report['missing']}\n"
+            f" duplicates: {report['duplicates']}\n"
+            f" extra     : {report['extra']}"
+        )
+
+    # Per-record validation against manifest-derived expectations.
+    expect = {
+        "nb": None, "d": None,
+        "k": int(manifest["k"]),
+        "queries_per_rep": int(manifest["queries_per_rep"]),
+        "xb_sha256": manifest["dataset_sha256"].get("xb_sha256"),
+        "xq_sha256": manifest["dataset_sha256"].get("xq_sha256"),
+    }
     for key, rec in records_by_key.items():
         ds = rec["dataset"]
         if expect["nb"] is None:
             expect["nb"] = ds["nb"]; expect["d"] = ds["d"]
         v.validate_record(rec, expect_dataset=expect)
-        # Also enforce dataset hash agreement with manifest:
-        for h_key in ("xb_sha256", "xq_sha256"):
-            if ds.get(h_key) != manifest["dataset_sha256"].get(h_key):
-                raise ValueError(
-                    f"{rec['_path']}: dataset {h_key} differs from manifest"
-                )
+
     return {
         "manifest": manifest,
         "records_by_key": records_by_key,
-        "duplicate_paths": duplicate_paths,
+        "files_by_key": files_by_key,
     }
 
 
 def per_run_metric(rec: dict) -> dict:
+    """Headline throughput is recomputed from sum(call_durations_s).
+
+    The stored sum_call_durations_s and elapsed_around_loop_s have
+    already been validated for consistency; we also recompute here to
+    make the formula explicit at the computation site.
+    """
     cfg = rec["config"]
     b = cfg["batch_size"]
     durs = rec["call_durations_s"]
-    sum_calls = float(rec["sum_call_durations_s"])
+    sum_calls = float(sum(durs))         # authoritative, recomputed
     around = float(rec["elapsed_around_loop_s"])
     nq = int(rec["queries_processed"])
     return {
@@ -256,12 +291,8 @@ def recommendations(agg: list[dict]) -> dict:
         if baseline is None:
             base_info = {"status": "no_single_thread_baseline"}
         else:
-            if lower_better:
-                pct = ((best["median"] - baseline["median"])
-                       / baseline["median"] * 100.0)
-            else:
-                pct = ((best["median"] - baseline["median"])
-                       / baseline["median"] * 100.0)
+            pct = ((best["median"] - baseline["median"])
+                   / baseline["median"] * 100.0)
             base_info = {
                 "baseline_1thread_median": baseline["median"],
                 "baseline_1thread_min_max": [baseline["min"], baseline["max"]],
@@ -307,42 +338,27 @@ def main() -> None:
                    help="run directory produced by run_bench.py")
     args = p.parse_args()
     run_dir = Path(args.run_dir)
-    if not (run_dir / "manifest.json").exists():
-        raise SystemExit(
-            f"{run_dir}/manifest.json missing. --run-dir must point to a run "
-            f"directory produced by scripts/run_bench.py."
-        )
 
-    data = load_run(run_dir)
+    # --- VALIDATION PHASE: nothing is written below until all checks pass. ---
+    data = load_and_validate_run(run_dir)
     manifest = data["manifest"]
     records = data["records_by_key"]
-    # Manifest vs records check: smoke must have exactly its expected set;
-    # full must have no missing/duplicates/extra.
-    present = {k: [v["_path"]] for k, v in records.items()}
-    for k, paths in data["duplicate_paths"].items():
-        present[k] = paths
-    report = v.validate_manifest_vs_records(manifest, present)
 
-    if manifest["mode"] == "full":
-        if report["missing"] or report["duplicates"] or report["extra"]:
-            raise SystemExit(
-                "Full run is incomplete or inconsistent; refusing to publish.\n"
-                f" missing   : {report['missing']}\n"
-                f" duplicates: {report['duplicates']}\n"
-                f" extra     : {report['extra']}"
-            )
-
-    rows = [per_run_metric(r) for r in records.values()]
-    agg = aggregate(rows)
-    write_summary(rows, run_dir / "summary.csv")
-    write_summary_agg(agg, run_dir / "summary_agg.csv")
-    had_figure = build_figure(agg, run_dir / "figure.png")
+    # Agreement check is part of validation; its failure must block artefact
+    # output just like a shape mismatch does.
     rep = agreement_report(records)
     if rep["missing_references"]:
         raise SystemExit(
             "Agreement check cannot complete; missing per-rep reference "
             f"(1-thread, batch=1) for: {rep['missing_references']}"
         )
+
+    # --- REPORTING PHASE: safe to write now. ---
+    rows = [per_run_metric(r) for r in records.values()]
+    agg = aggregate(rows)
+    write_summary(rows, run_dir / "summary.csv")
+    write_summary_agg(agg, run_dir / "summary_agg.csv")
+    had_figure = build_figure(agg, run_dir / "figure.png")
     (run_dir / "agreement.json").write_text(json.dumps(rep, indent=2))
     recs = recommendations(agg)
     (run_dir / "recommendations.json").write_text(json.dumps(recs, indent=2))
