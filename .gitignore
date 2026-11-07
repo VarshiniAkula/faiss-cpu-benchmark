@@ -4,5 +4,12 @@ data/xq.npy
 
 # Local env.
 .venv/
+.venv_vtune/
 __pycache__/
 *.pyc
+
+# Raw VTune captures (potentially hundreds of MB). Exported CSV/JSON
+# in runs/vtune-*/ ARE committed; the raw .vtune directories are not.
+runs/vtune-*/hs_*/r*hs/
+runs/vtune-*/uarch_*/r*ue/
+runs/vtune-*/*.lock

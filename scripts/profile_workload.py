@@ -57,15 +57,18 @@ def _load_ittnotify() -> tuple[object | None, str]:
     env = os.environ.get("ITT_LIB_DIR") or os.environ.get("VTUNE_PROFILER_DIR")
     if env:
         candidate_dirs.append(Path(env))
-    # 2. oneAPI standard install (any version).
+    # 2. oneAPI standard install (any version). On Windows the usable
+    # runtime DLL is bin64/runtime/ittnotify_collector.dll; sdk/lib64
+    # only holds the static import lib on this platform.
     oneapi_vtune = Path(r"C:\Program Files (x86)\Intel\oneAPI\vtune")
     if oneapi_vtune.exists():
         for v in sorted(oneapi_vtune.iterdir(), reverse=True):
             if v.is_dir():
                 candidate_dirs.extend([
+                    v / "bin64" / "runtime",
+                    v / "bin64",
                     v / "sdk" / "lib64",
                     v / "sdk" / "lib",
-                    v / "bin64",
                 ])
     # 3. Legacy VTune Amplifier.
     legacy = Path(r"C:\Program Files (x86)\IntelSWTools")
@@ -73,12 +76,14 @@ def _load_ittnotify() -> tuple[object | None, str]:
         for v in sorted(legacy.iterdir(), reverse=True):
             if v.is_dir() and v.name.lower().startswith("vtune"):
                 candidate_dirs.extend([
+                    v / "bin64" / "runtime",
                     v / "sdk" / "lib64",
                     v / "bin64",
                 ])
     dll_names = (
-        "libittnotify.dll", "libittnotify_collector.dll",
         "ittnotify_collector.dll",
+        "libittnotify_collector.dll",
+        "libittnotify.dll",
     )
     tried: list[str] = []
     for d in candidate_dirs:
